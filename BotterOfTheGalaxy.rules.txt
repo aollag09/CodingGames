@@ -1,0 +1,334 @@
+You can now last hit your low health units, to prevent the enemy from gaining gold.
+You can now buy items for your hero with the BUY command.
+You can sell an item your hero owns with the SELL command.
+See the updated statement for details.
+ 	The Goal
+Destroy your opponent's tower.
+ 	Rules
+The game is played on a map 1920 units wide and 750 units high with 2 players.
+The coordinate X=0, Y=0 is the top left pixel.
+
+Each player controls a hero of their choice, which they pick before the game begins by outputting each hero’s name.
+
+The teams start out on opposite sides of the road stretching along the map.
+
+An allied tower is placed for each team next to their starting position. Each player must protect their own tower, while trying to destroy their opponent's tower.
+
+Every 15 turns a wave of allied units spawns for each player next to their tower, to aid them in battle against their opponent. These units will head straight for the enemy tower, but will stop to fight any enemy they encounter in their path.
+
+
+The Heroes
+
+You can select from following heroes:
+DEADPOOL
+DOCTOR_STRANGE
+HULK
+IRONMAN
+VALKYRIE
+
+
+When your hero kills enemy units you gain gold which you can use to buy equipment that will instantly make them more powerful.
+Actions
+
+Every turn your heroes must perform one of the following actions:
+
+WAIT
+MOVE x y move towards (x, y)
+ATTACK unitId try to attack unitId
+ATTACK_NEAREST unitType attacks nearest entity of given type
+MOVE_ATTACK x y unitId move towards (x, y) and attacks unitId
+BUY item_name
+SELL item_name
+Items
+
+Items are pieces of equipment that increase various attributes of your heroes.
+
+
+Victory Conditions
+Destroy the enemy tower
+Kill the enemy hero
+Have more last hits / denies than your opponent
+Lose Conditions
+Output wrong command
+ 	Expert Rules
+
+Collisions
+
+There are no collisions between units.
+
+
+Round types
+
+There are two different types of turns in this game.
+
+The first one is for hero picks and occurs at the beginning of the game. When the input variable roundType is negative, you must output the name of the hero you want to play. If you output WAIT  instead of a hero name, a hero will be selected for you.
+
+The second type of turn is a normal game turn where you have to fight your way towards the win conditions. roundType will be positive and its value will represent the amount of heroes that you have to order.
+
+
+Game Entities: Units / Heroes / Towers / Neutral Creatures
+
+Every entity has the following attributes:
+unitId
+team - the team they belong to
+type - it can be an Unit / Hero / Tower / Groot(Neutral Unit)
+attackRange - the distance from which entities can attack
+health - the current amount of damage they can take before they die
+mana - the current amount of mana they have available to perform their skills
+attack_damage - the amount of damage they can deal with an ATTACK command
+movement_speed - the distance they can travel in a single turn. An entity will stop where it arrives and won't travel any further until the following round.
+
+Entities also have maxHealth and maxMana. These represent the maximum values of health and mana they can have.
+
+Towers are stationary. They do not move. Ever.
+
+Spawn Locations
+
+Hero for player 0 spawns at:
+x: 200, y: 590
+Hero for player 1 spawns at:
+x: 1720, y: 590
+
+Hero stats
+
+Name	Stats
+Deadpool
+health 1380
+mana 100
+damage 80
+move speed 200
+mana regen 1
+attackRange 110
+Doctor Strange
+health 955
+mana 300
+damage 50
+move speed 200
+mana regen 2
+attackRange 245
+Hulk
+health 1450
+mana 90
+damage 80
+move speed 200
+mana regen 1
+attackRange 95
+Ironman
+health 820
+mana 200
+damage 60
+move speed 200
+mana regen 2
+range 270
+Valkyrie
+health 1400
+mana 155
+damage 65
+move speed 200
+mana regen 2
+range 130
+
+Attackingk
+
+Heroes have an attack time of 0.1 and units have an attack time of 0.2
+
+Ranged units require an additional attack time * distance / attackRange for their projectiles to hit the target.
+
+A unit or hero is ranged if their attack attackRange is greater than 150.
+
+If a unit is out of range, your hero will first move closer towards the target and then try to attack it. This helps a lot if you're only slightly out of range.
+
+The time used to move is distance / moveSpeed
+
+So if your hero has 75 range and travels a distance of 100 on the map, at 200 moveSpeed, it uses up 100 / 200 = 0.5 turn time and still has half the turn left to attack. The attack will take place at 0.5 + 0.1 since the hero is melee in this case.
+
+The distance to the unit still needs to be equal or smaller to the hero's range for the attack to take place.
+
+Attacks with an attack time higher than 1 don't carry over to the next round.
+
+ATTACK_NEAREST unitType works like a regular attack command, except it attacks nearest entity of given type.
+MOVE_ATTACK x y  unitId : your hero first moves to target location and then executes the attack, only if enough time is left during the current round to hit the target.
+
+
+Last Hit & Deny
+
+Any attack that takes away the last bit of health from an entity is called a Last Hit. A last hit performed on an enemy entity by one of your heroes grants you gold.
+
+A last hit performed on one of your entities is called a Deny and prevents your opponent from getting gold when the entity dies. You can only attack an allied hero or allied unit when their health is below 40%.
+
+
+Lane units aggro and attack pattern
+
+If your hero attacks an enemy hero while his allied units are around him, these units will follow and attack your hero. This is called aggro. The attacking hero needs to be within 300 distance to the enemy units for this to take effect and it's canceled if the hero moves out of this range. Unit aggro lasts for 3 rounds, including the initial round.
+
+Lane units will always first try to hit the hero that aggroed them.
+
+If not aggroed, units move straight towards the enemy tower from their current location.
+On their way they always stop to hit the closest unit from the enemy team, if the enemy is within attackRange.
+- If multiple targets are at the same distance, the lowest health enemy is selected.
+- Then the enemy with highest y coordinate in their location is selected.
+- And last the enemy with lowest unitId is selected.
+
+
+Tower aggro and attack pattern
+
+The tower will attack in the following order:
+
+First targets any enemy hero that attacks an allied hero.
+Targets closest enemy unit within range.
+Targets closest enemy hero.
+
+Using spells or hitting the tower, doesn't force tower aggro.
+
+
+Gold rewards
+
+Entity Type	Gold Reward
+Melee Unit	30
+Ranged Unit	50
+Hero	300
+Denied Hero	150
+Groot	100 - first spawn
+
+Items
+
+Items increase hero attributes when equipped. The amount of attributes and the bonuses vary from item to item. These attributes are added to the hero's current stats and are lost when the item is sold.
+
+Possible item bonuses are health, maxHealth, mana, maxMana, manaRegeneration, attack_damage, moveSpeed.
+
+When selling a mana boosting item your current mana will be minimum of 0 and currentmana - bonus mana granted by the item.
+
+When selling a health boosting item your current health will be minimum of 1 and currenthealth - bonus health granted by the item.
+
+Buying and Selling
+
+A hero can purchase an item with the BUY item_name command.
+
+A hero can sell an item with the SELL item_name command. 50% of the initial item gold value is refunded when selling an item.
+
+Each hero can have up to 4 items at once. You can have multiple copies of the same item on a hero, but can only BUY and SELL one at a time.
+
+
+Potions
+
+Potions are items that get consumed immediately after purchase. Their values are permanently added to the hero. You can't sell them and they get removed from the hero's item slots, at the end of the round they are purchased. Your hero still needs an empty item slot to purchase a potion.
+
+Potions can either recover current mana or current health. The bonus health and mana gained from potions won't go above maxHealth or maxMana.
+
+
+Item Stats
+
+All items will be generated at the start of the game with completely random stats.
+
+Right at the beginning of the game you get a random amount of gold between 100 and 650. There will be items that are randomly generated to match this gold amount, so they’re affordable to players when the game starts.
+
+All other items are generated to match different costs of all the game phases you go through, from early to late game.
+
+
+General information
+
+Overall it looks complex, but it's very simple and fun.
+
+
+For more details you can check the Referee on GitHub
+ 	Game Input
+Initialization input
+Line 1: your team’s number, can be either 0 or 1.
+Line 2:bushAndSpawnPointCount the number of bushes and spawn points
+
+Next bushAndSpawnPointCount lines: String entityType [Bush, Spawn], Integer x, Integer y, Integer radius
+
+Next Line: itemCount the total number of items available in game.
+Next itemCount lines:
+String itemName
+Integer itemCost
+Integer damage
+Integer health
+Integer maxHealth
+Integer mana
+Integer maxMana
+Integer moveSpeed
+Integer manaRegeneration
+Integer isPotion [it’s a potion if it’s equal to 1]
+Input for one game turn
+Line 1: your gold as Integer
+Line 2: your opponent’s gold as Integer
+Line 3: roundType an Integer that lets you know if you’re in the Hero pick phase or during the actual game phase.
+Line 4: entityCount a number that represents the sum of all heroes, units, towers and neutral creatures currently on the map
+
+Next entityCount inputs of:
+Integer unitId
+Integer team
+String unitType
+Integer x
+Integer y
+Integer attackRange
+Integer health
+Integer max_health
+Integer shield
+Integer attack_damage
+Integer movement_speed
+Integer stun_duration
+Integer gold_value
+
+
+If the unitType is a HERO it will also have:
+Integers countDown1, countDown2 and countDown3 representing the countdown on each skill before next skill usage is possible
+Integer mana
+Integer maxMana
+Integer manaRegeneration
+String heroType
+Integer isVisible [1 if visible]
+Integer itemsOwned
+Output for one game turn
+Depending on the value of roundType your output must be either a hero pick or a hero command.
+
+If roundType is negative you must select a hero:
+One Output line: heroName must be one of the available heroes DEADPOOL, DOCTOR_STRANGE, HULK, IRONMAN, VALKYRIE
+If roundType is positive, it means you own roundType heroes and you must output:
+One line for each living hero you own, containing any of the following actions:
+WAIT
+MOVE x y
+ATTACK unitId
+ATTACK_NEAREST unitType [UNIT, HERO, TOWER, GROOT]
+MOVE_ATTACK x y unitId
+BUY itemName
+SELL itemName
+To print a custom message in the game: [your command];[your custom message] (ex: MOVE 1 2;BotG, best game!)
+Constraints
+Response time for first turn ≤ 1000ms
+Response time for one turn ≤ 50ms
+
+What is in store for me in the higher leagues?
+
+The extra rules available in higher leagues are:
+Neutral creatures, bushes and a 2nd hero.
+Hero skills.
+Galaxies at War
+The armored towers rose above the desolated area, stretching into the collapsing skies of two fusing pocket universes.
+
+Droves of mighty raccoons broke the silence as they emerged from their strongholds where they had been lying in wait. Now relentlessly marching forward into the rocky desert, they sought to destroy the intruders.
+
+The intruders were the ones who came to take down the dark armies and put a stop to their conquest.
+
+When the boulder sized fist hit, it was hard and unforgiving. Their bodies were flung away, clearing the path. A skillful lance wielder was keeping them at bay, while the ground was scorched to seal them away.
+
+Heroes had gathered!
+
+“You know the plan, right?” asked Ironman.
+
+“It's all about taking over the towers and control the bots so we can take over the galaxy.”
+
+“No, it's not! We are here to save the galaxy from the raccoons!” exclaimed Valkyrie.
+
+“Have you lost touch with ...” Reality? Doctor Strange was about to ask, but then a sudden realisation came to mind. They had been fighting alongside alternate versions of themselves from different universes. It was uncertain which reality came into question.
+
+A heavy gaze turned inwards the group. Eyes widened, fists clenched and stares intensified.
+
+“Justice will prevail,” growled Hulk.
+
+“Hah, agreed. Whose justice though?” asked Deadpool.
+
+“Fine, we each have a side to play on, so let's sort out things properly,” said the other Deadpool.
+
+And there inbetween, within the twilight of the colliding bubble universes, they were battling. Each one of them fighting to uphold their own morals. As the worlds were falling apart they were trying to prove whose justice is true justice. To themselves and to the others, to the silent witnesses who could no longer stay silent …
