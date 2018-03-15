@@ -15,25 +15,65 @@ var A = parseInt(inputs[2]); // number of rounds between the time the alarm coun
 // Kirk
 var kirk = {
 
-  x : null,
-  y : null,
-  dead : false,
-  states : [],
   fuel : 1200,
-  target : "CONTROL",
+  start : null,
+  target : null,
+  backhome : false,
 
+  // Update the target
   setpos : function( x, y ){
-    this.x = x;
-    this.y = y;
-    if( this.target === "CONTROL" ){
-      var control = map.control();
-      printErr( "Control :  " + JSON.stringify( control ) );
-      if(  control != undefined && control != null && control.x == x && control.y == y ){
-        // go back home !
-        printErr( "Let's go back home !! " );
-        this.taget = "HOME";
+    this.start = map.grid[x][y];
+    this.updatetarget();
+  },
+
+  updatetarget : function(){
+    var control = map.control();
+    var start = map.start();
+
+    if( control == null ){
+      // Explore
+      this.target = null;
+
+    } else {
+      if( this.backhome ){
+        this.target = start;
+      }
+      else if(  control != null && control.char == this.start.char ){
+        this.backhome = true;
+        this.target = start;
+      } else{
+        this.target = control;
       }
     }
+  },
+
+  next : function(){
+
+    // compute shortest path :
+    var resultpath = astar.search( map.grid, this.start, this.target, true );
+    if( resultpath == null || resultpath.length == 0 ){
+      resultpath = astar.search( map.grid, this.start, this.target, false );
+    }
+    // debug
+    /*printErr( "RESULT PATH :")
+    printErr( JSON.stringify( resultpath ).toString() );*/
+
+    // next move is the first element :
+    var next = resultpath[ 0 ];
+
+    if( next.pos.x > this.start.pos.x ){
+      return "RIGHT";
+    }
+    if( next.pos.x < this.start.pos.x ){
+      return "LEFT";
+    }
+    if( next.pos.y < this.start.pos.y ){
+      return "UP";
+    }
+    if( next.pos.y > this.start.pos.y ){
+      return "DOWN";
+    }
+    return "NOPE"
   },
 
   save : function() {
@@ -150,23 +190,29 @@ var astar = {
 
   },
 
-  search: function( grid, start, target ){
+  search: function( grid, start, target, force ){
 
     // Init node grid
-    init( grid );
+    this.init( grid );
+
+    printErr( "START NODE : " + JSON.stringify( start ) );
+    printErr( "TARGET NODE : " + JSON.stringify( target ) );
 
     // Init first node
-    var startnode =  grid[ start.x][start.y];
-    startnode.g = 0;
-    startnode.h = heuristic( start, target );
-    startnode.f = startnode.g + startnode.h;
+    start.g = 0;
+    if( target != null ){
+      start.h = this.heuristic( start.pos, target.pos );
+    }
+    start.f = start.g + start.h;
 
     // Init set list
     var closeset = [];
     var openset = [];
     openset.push( start );
+    var nbiteration = 0;
 
     while( openset.length > 0 ){
+      nbiteration ++;
 
       // lower f node in openset
       var minscore = C*R;
@@ -178,8 +224,19 @@ var astar = {
         }
       }
 
-      //  render case -- Reach destination
-      if( currentnode.pos == target ){
+  //    printErr( "CURRENT NODE : " + JSON.stringify( currentnode.pos ) + " " + currentnode.char );
+
+      //  render case --
+      var stop = false;
+      if( target == null ){
+        stop = currentnode.char == "?";  // closest unknwon places
+      }
+      if( target != null && ! stop ){
+        stop = currentnode.char == target.char; // reach target
+      }
+      if( stop ){
+        printErr( " NB ITERATION : " + nbiteration );
+    //    printErr( "END LOOP WITH : " + JSON.stringify( currentnode ) );
         var curr = currentnode;
         var ret = [];
         while(curr.parent) {
@@ -189,13 +246,63 @@ var astar = {
         return ret.reverse();
       }
 
+
       // Normal case -- move currentNode from open to closed, process each of its neighbors
       openset.splice( openset.indexOf( currentnode ), 1 );
       closeset.push( currentnode );
 
+      // loop on all neighbors
+      var next = this.neighbors( grid, currentnode );
+      for( var i = 0; i < next.length; i++ ){
+        neighbor = next[i];
+
+        if( this.isWall( neighbor, target, force  ) || closeset.includes( neighbor ) ) {
+          continue; // skip this node
+        }
+
+        var gscore = currentnode.g + 1;
+        var gisbest = false;
+
+        if( ! openset.includes( neighbor ) ){
+          // This the the first time we have arrived at this node, it must be the best
+          // Also, we need to take the h (heuristic) score since we haven't done so yet
+          gisbest = true;
+          neighbor.h = 0;
+          if( target != null ){
+            neighbor.h = this.heuristic( neighbor.pos, target.pos );
+          }
+          openset.push( neighbor );
+        } else if( gscore < neighbor.g ){
+          // We have already seen the node, but last time it had a worse g (distance from start)
+          gisbest = true;
+        }
+
+        if( gisbest ){
+          // Found an optimal (so far) path to this node.   Store info on how we got here and
+          //  just how good it really is...
+          neighbor.parent = currentnode;
+          neighbor.g = gscore;
+          neighbor.f = neighbor.g + neighbor.h;
+        }
+      }
     }
 
+    // No result was found -- empty array signifies failure to find path
+    return [];
 
+  },
+
+  contains : function( node, array ){
+    return array.includes( node );
+  },
+
+  isWall : function( node, target, force ){
+    var iswall = node.char == "#";
+    if( force && target != null ){
+      iswall = iswall || node.char == "?";
+    }
+
+    return iswall
   },
 
   neighbors: function( grid, node ){
@@ -204,18 +311,20 @@ var astar = {
     var x = node.pos.x;
     var y = node.pos.y;
 
-    if(grid[x-1] && grid[x-1][y]) {
-      ret.push(grid[x-1][y]);
-    }
-    if(grid[x+1] && grid[x+1][y]) {
-      ret.push(grid[x+1][y]);
-    }
     if(grid[x][y-1] && grid[x][y-1]) {
       ret.push(grid[x][y-1]);
     }
     if(grid[x][y+1] && grid[x][y+1]) {
       ret.push(grid[x][y+1]);
     }
+    if(grid[x-1] && grid[x-1][y]) {
+      ret.push(grid[x-1][y]);
+    }
+    if(grid[x+1] && grid[x+1][y]) {
+      ret.push(grid[x+1][y]);
+    }
+
+
     return ret;
   },
 
@@ -242,10 +351,9 @@ while (true) {
   for (var i = 0; i < R; i++) {
     var ROW = readline(); // C of the characters in '#.TC?' (i.e. one line of the ASCII maze).
     map.update( i, ROW );
-      printErr( "Line : " + i + " : " + ROW );
   }
 
-  var printmap = true;
+  var printmap = false;
   if( printmap ){
     printErr( " The Map : " );
     for (var i = 0; i < R; i++) {
@@ -259,7 +367,8 @@ while (true) {
 
   // update kirk
   kirk.setpos( KC, KR );
+  var next = kirk.next();
   printErr("Kirk : " + JSON.stringify( kirk ).toString() );
 
-  print('RIGHT'); // Kirk's next move (UP DOWN LEFT or RIGHT).
+  print( next ); // Kirk's next move (UP DOWN LEFT or RIGHT).
 }
