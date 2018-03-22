@@ -4,6 +4,7 @@
 **/
 
 var N = parseInt(readline());
+printErr( "N : " + N );
 var MAX = 1;
 //printErr( "N : " + N );
 var tasks = [];
@@ -26,41 +27,69 @@ var sortedtasks = tasks.sort( function( task1, task2 ) {
   return ( task1.duration - task2.duration );
 });
 
+printErr( "End Sort" );
+
+
+var mintime = N;
+var maxtime = -N;
+for (var i = 0; i < tasks.length; i++) {
+
+  if( tasks[i].day < mintime ){
+    mintime = tasks[i].day;
+  }
+
+  if( tasks[ i ].day + tasks[ i ].duration > maxtime ){
+    maxtime = tasks[ i ].day + tasks[ i ].duration;
+  }
+
+}
+
+printErr( " mintime : " + mintime );
+printErr( " maxtime : " + maxtime );
+var maxtime = maxtime - mintime;
+
+
 var nbtasks = 0;
 
 var timeline = {
   planning : [],
+  nbhoursplanned : 0,
 
   schedule : function( task ){
 
-    //printErr( "Schedule Task : " + JSON.stringify( task ) );
-    
+
+
     var available = true;
-    for( var i = task.day; i < ( task.day + task.duration ); i ++ ){
 
-      // init if first time
-      if( this.planning[ i ] === undefined || this.planning[ i ] === null ){
-        this.planning[ i ] = 0;
+    // optimization
+    /*if( this.nbhoursplanned >= maxtime ){
+    available = false */
+
+
+    if( available ){
+
+      for( var i = task.day; i < ( task.day + task.duration ); i ++ ){
+
+        // more than capacity ?
+        if( this.planning[ i ] === true ){
+          available = false;
+          break;
+        }
+
       }
-
-      // more than capacity ?
-      if( (  this.planning[ i ] + 1 ) > MAX ){
-        available = false;
-      }
-
     }
 
     if( available ){
 
       // increment the number of tasks
       nbtasks ++;
-
+        printErr( "Schedule Task : " + JSON.stringify( task ) );
       // append to schedule
-      for( var i = task.day; i < ( task.day + task.duration ); i ++ ){
-        this.planning[ i ] += 1;
+      for( var j = task.day; j < ( task.day + task.duration ); j ++ ){
+        this.planning[ j ] = true;
+        this.nbhoursplanned ++;
       }
     }
-
     //printErr( this.toDebugString( ) );
   },
 
@@ -75,10 +104,17 @@ var timeline = {
 
 };
 
-// add tasks to timeline
-for (var i = 0; i < tasks.length; i++) {
-  timeline.schedule( tasks[i] );
+
+// init
+for (var i = mintime; i < maxtime; i++) {
+  timeline.planning[ i ] = false;
 }
 
+
+
+// add tasks to timeline
+for (var i = 0; i < sortedtasks.length; i++) {
+  timeline.schedule( sortedtasks[i] );
+}
 
 print( nbtasks );

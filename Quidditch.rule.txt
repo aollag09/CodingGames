@@ -1,0 +1,114 @@
+
+This is a league based puzzle.
+
+For this puzzle, multiple versions of the same game are available. Once you have proven your skills on this first version, you will access a higher league and extra rules will be unlocked.
+
+Edit: Since the challenge, new inputs/changes are available (magic, new states, spell duration/cost). If you want to reuse your challenge code, you will have to take them into account to avoid timeout errors.
+See the updated statement for details.
+ 	The Goal
+Score more points than your opponent.
+Two players face off in a rectangular map.
+Each player controls 2 wizards. To score a point, a Snaffle (a mix between a Snitch and a Quaffle) must go through the opponent's goal.
+ 	Rules
+The map
+
+The playing field is a rectangle of 16001x 7501 units. The coordinates X=0, Y=0 represent the pixel at the top-left.
+2 goals, one per player, are located on either side of the field.
+Each goal is composed of two poles whose centers are separated by 4000 units.
+Each pole has a radius of 300 units.
+The coordinates of the center of each goal are (X=0, Y=3750) for team 0 and (X=16000, Y=3750) for team 1.
+
+The Snaffles
+
+Snaffles are discs with a radius of 150 units.
+At the start of a game, Snaffles are placed randomly but symmetrically across the map.
+A game can start with either 5 or 7 Snaffles.
+Players must use them to score points.
+
+Wizards
+
+Each player controls 2 wizards.
+A wizard is a disc with a radius of 400 units.
+A player's wizards start near that player's goal.
+
+Game mechanics
+
+To score a point, a Snaffle must enter the opponent's goal.
+The Snaffle in question will be removed from the game.
+
+To move a wizard, you must output the MOVE command followed by the X Y coordinates of the destination and by the thrust power between 0 and 150. This will apply a force to the wizard twoards the given coordinates. This force is what gives the wizard his speed. Careful, the faster a wizard goes, the harder he is to control!
+
+It is impossible to leave the playing field. Wizards and Snaffles will rebound off the edges of the map.
+Only Snaffles can go through goals.
+Collisions occur between all entities, except between Snaffles and wizards.
+
+If the center of a Snaffle enters the radius of a wizard, he grabs it.
+On the turn following a grab, the wizard will be able to throw it by using the THROW command followed by the X Y coordinates to throw the Snaffle towards, and by the power of the throw between 0 and 500.
+
+If a wizard doesn't use the throw command after grabbing a Snaffle, he will drop the Snaffle.
+
+The game ends after 200 turns or as soon as one player has scored more than half of the possible points.
+If a player does not provide output in time or provides incorrect output, they are eliminated and the game ends immediately. If both players are eliminated on the same turn, they will be tied regardless of their score.
+
+Victory Conditions
+Be the first player to score the majority of points.
+Be the player with the most points after 200 turns.
+
+Lose Conditions
+Your program does not provide output in time.
+Your program provides invalid output.
+ 	Expert Rules
+Extra details on the game mechanics will become available in league Wood 1.
+ 	Game Input
+Initializaton input
+Line 1: one integer myTeamId for the id of your team
+myTeamId= 0: your goal is on the left
+myTeamId= 1: your goal is on the right.
+Input for one game turn
+First line: a string with 2 space separated integers for your score myScore and your magic points myMagic (not useful in this league).
+
+Next line: a string with 2 space separated integers for your opponent score opponentScore and your opponent magic points opponentMagic (not useful in this league).
+
+Next line: an integer entites for the number of entities currently in play.
+
+Next entites lines: one line per entity.
+
+Each entity is represented by a unique integer, a string and 5 more space separated integers: entityId, entityType, x, y, vx, vy & state.
+entityId is the unique id of this entity.
+entityType is a string indicating the type of entity. The value of this string can be:
+WIZARD for one of your wizards
+OPPONENT_WIZARD for an opposing wizard
+SNAFFLE
+x, y for the entity's position.
+vx, vy for the entity's speed vector.
+
+state can be:
+For a wizard:
+1: has grabbed a snaffle
+0: otherwise
+For a Snaffle:
+1: was grabbed by a wizard
+0: otherwise
+Output for one game turn
+One line for each one of your team's wizards: one of the following actions:
+
+MOVE x y thrust : the keyword MOVE followed by 3 integers: x y for the destination and the desired thrust power [0;150].
+THROW x y power : the keyword THROW followed by 3 integers: x y for the destination and the desired power [0;500].
+Constraints
+0 ≤ entityId ≤ 12
+4 ≤ entities ≤ 13
+0 < x < 16000
+0 < y < 7500
+-106 < vx < 106
+-106 < vy < 106
+0 ≤ state ≤ 1
+Response time for the first turn ≤ 1000 ms
+Response time per turn ≤ 100 ms
+
+What is in store for me in the higher leagues?
+
+The extra rules available in higher leagues are:
+A new entity: Bludgers.
+New commands: wizards may cast spells.
+It’s coming back...
+The world cup of Quidditch, the most famous sport of the wizarding world, is back. You’ve been waiting for this day for a long time, practicing almost every day. But rumors say that the rules have changed. Will the balls be different? Or maybe the scoring will change? Will you be able to adapt? Can you fly as fast as before? All these questions are bursting in your head as you slowly walk through the players tunnel, hearing the roaring cheers from the crowd. Spectators from all over the world have gathered for this fantastic competition. Time to shine!
