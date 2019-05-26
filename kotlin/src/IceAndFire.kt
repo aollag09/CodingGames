@@ -1,12 +1,10 @@
 import java.util.*
-import java.io.*
-import java.math.*
 
 /**
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-fun main(args : Array<String>) {
+fun main(args: Array<String>) {
     val input = Scanner(System.`in`)
     val numberMineSpots = input.nextInt()
     for (i in 0 until numberMineSpots) {
@@ -45,3 +43,24 @@ fun main(args : Array<String>) {
         println("WAIT")
     }
 }
+
+class Snapshot {
+
+
+}
+
+class Map {
+    val SIZE = 12
+    val void = "#"
+    val neutral = "."
+    val ownedActive = "O"
+    val ownedInactive = "o"
+    val activeOpponent = "X"
+    val inactiveOpponent = "x"
+
+    var map = Array(SIZE) { Array(SIZE) { void } }
+
+}
+
+
+
