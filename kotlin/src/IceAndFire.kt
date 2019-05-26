@@ -37,6 +37,7 @@ fun main(args: Array<String>) {
             val y = input.nextInt()
         }
 
+
         // Write an action using println()
         // To debug: System.err.println("Debug messages...");
 
@@ -46,21 +47,52 @@ fun main(args: Array<String>) {
 
 class Snapshot {
 
+	var map: Map
+	var ice : Team
+	var fire: Team
 
 }
 
 class Map {
     val SIZE = 12
-    val void = "#"
-    val neutral = "."
-    val ownedActive = "O"
-    val ownedInactive = "o"
-    val activeOpponent = "X"
-    val inactiveOpponent = "x"
+    val VOID = "#"
+    val NEUTRAL = "."
+    val OWNED_ACTIVE = "O"
+    val OWNED_INACTIVE = "o"
+    val OPPONENT_ACTIVE = "X"
+    val OPPONENT_INACTIVE = "x"
 
-    var map = Array(SIZE) { Array(SIZE) { void } }
+    var map = Array(SIZE) { Array(SIZE) { VOID } }
 
+	fun init(index: Int, line: String){
+        line.
+		for( i in 0 until SIZE ){
+			map.get( index ).set( i, line.get(i) );
+		}
+	}
 }
 
+class Team{
+	var gold: Int
+	var income: Int
+	var units: Array<Unit>
+	var building: Array
+}
 
+class Unit{
+	var x: Int
+	var y: Int
+	var id: Int
+	var level: Int
+}
+
+class Building{
+	var x: Int
+	var y: Int
+	var type: Int
+}
+
+fun dist(x1: Int, y1: Int, x2:Int, y2: Int):Double{
+	return (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)
+}
 
