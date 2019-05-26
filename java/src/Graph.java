@@ -1,4 +1,8 @@
-static class Graph {
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+
+class Graph {
     private static final String NEWLINE = System.getProperty("line.separator");
     private final int V;
     private int E;

@@ -1,0 +1,184 @@
+
+ 	The Goal
+Score more points than your opponent.
+Two players face off in a rectangular map.
+Each player controls 2 wizards. To score a point, a Snaffle (a mix between a Snitch and a Quaffle) must go through the opponent's goal.
+ 	Rules
+The map
+
+The playing field is a rectangle of 16001x 7501 units. The coordinates X=0, Y=0 represent the pixel at the top-left.
+2 goals, one per player, are located on either side of the field.
+Each goal is composed of two poles whose centers are separated by 4000 units.
+Each pole has a radius of 300 units.
+The coordinates of the center of each goal are (X=0, Y=3750) for team 0 and (X=16000, Y=3750) for team 1.
+
+The Snaffles
+
+Snaffles are discs with a radius of 150 units.
+At the start of a game, Snaffles are placed randomly but symmetrically across the map.
+A game can start with either 5 or 7 Snaffles.
+Players must use them to score points.
+
+Bludgers
+
+Bludgers are discs with a radius of 200 units.
+At the start of the game, Bludgers are placed symmetrically around the map's center.
+There are always exactly 2 Bludgers per game.
+The Bludgers are included solely to bash the wizards about. Both Bludgers will systematically target the wizard closest to them, but will ignore the last wizard they have collided with. A Bludger will aim straight for its target, ignoring any obstruction in the way.
+
+Wizards
+
+Each player controls 2 wizards.
+A wizard is a disc with a radius of 400 units.
+A player's wizards start near that player's goal.
+Wizards can cast spells.
+
+Spells
+
+Each player has a magic gauge.
+At the start of the game, the gauge is empty, but it increases by 1 point at the end of every turn.
+A player can have up to 100 magic points at any given time.
+If a player has enough magic points, one of their wizards may use a spell instead of a MOVE or THROW command.
+A wizard may cast any of the following spells:
+
+OBLIVIATE id	The wizard's team is invisible to the target bludger.
+Magic cost	5
+Duration	4
+Spell target	Bludgers
+Details	Both of your wizards can no longer be targeted by the Bludger id for the next 4 turns.
+The Bludger will stop chasing you if it was already targeting one of your wizards.
+
+PETRIFICUS id	The target entity is immediately frozen to a standstill.
+Magic cost	10
+Duration	1
+Spell target	Bludgers, Snaffles, Opponent wizards
+Details	The speed vector of the entity id is set to 0 on the next turn.
+
+ACCIO id	The target entity is pulled towards the wizard.
+Magic cost	15
+Duration	6
+Spell target	Bludgers, Snaffles
+Details	For the next 6 turns, a force pulls the entity id towards the wizard. This force decreases in proportion to the square of the distance.
+
+FLIPENDO id	The target entity is pushed away from the wizard.
+Magic cost	20
+Duration	3
+Spell target	Bludgers, Snaffles, Opponent wizards
+Details	For the next 3 turns, a force pushes the entity id away from the wizard. This force decreases in proportion to the square of the distance.
+Game mechanics
+
+To score a point, a Snaffle must enter the opponent's goal.
+The Snaffle in question will be removed from the game.
+
+To move a wizard, you must output the MOVE command followed by the X Y coordinates of the destination and by the thrust power between 0 and 150. This will apply a force to the wizard twoards the given coordinates. This force is what gives the wizard his speed. Careful, the faster a wizard goes, the harder he is to control!
+
+It is impossible to leave the playing field. Wizards, Bludgers and Snaffles will rebound off the edges of the map.
+Only Snaffles can go through goals.
+Collisions occur between all entities, except between Snaffles and wizards.
+
+If the center of a Snaffle enters the radius of a wizard, he grabs it.
+On the turn following a grab, the wizard will be able to throw it by using the THROW command followed by the X Y coordinates to throw the Snaffle towards, and by the power of the throw between 0 and 500.
+
+If a wizard doesn't use the throw command after grabbing a Snaffle, he will drop the Snaffle.
+If a wizard attempts to cast a spell when there is not enough magic points, the command is ignored and the game continues.
+If a player attempts to cast several spells, the wizard with the smallest ID will cast his spell first.
+If a wizard casts the same spell as a previously cast spell whose effect is still active, the previous spell is cancelled.
+
+The game ends after 200 turns or as soon as one player has scored more than half of the possible points.
+If a player does not provide output in time or provides incorrect output, they are eliminated and the game ends immediately. If both players are eliminated on the same turn, they will be tied regardless of their score.
+
+Victory Conditions
+Be the first player to score the majority of points.
+Be the player with the most points after 200 turns.
+
+Lose Conditions
+Your program does not provide output in time.
+Your program provides invalid output.
+
+
+
+ 	Expert Rules
+To grabs a Snaffle, the distance between the center of the Snaffle and the wizard must be less than or equal to the wizard's radius - 1.
+To score, the center of a Snaffle must go over the goal line.
+When a wizard grabs a Snaffle, it is not subject to collisions or spells for the rest of the turn.
+When a wizard grabs a Snaffle, it is immediately placed on the same position as the wizard and will adopt the same speed vector as the wizard.
+When a wizard grabs a Snaffle using ACCIO, the spell effect stops.
+If a wizard drops a Snaffle, it will keep the inertia provided by the wizard's speed vector.
+When a wizard grabs a Snaffle, he cannot grab another until 3 turns have passed.
+When a wizard casts a spell, the effect of the spell starts on the next turn.
+All collisions are elastic. For technical reasons, a minimal impulse of 100 is applied to colliding entities if their speed is too low (doesn't apply when colliding with map edges).
+The mass of the entites are as follows:
+Wizard	1
+Snaffle	0.5
+Bludger	8 Each turn, the movement of entites is computed as followed:
+Thrust: the normalized vector between the entity's position and destination is multiplied by the thrust power divided by the mass. The result is added to the current speed vector. The bludger's thrust is 1000.
+Spell power: the normalized vector between the entity's position and where the spell is directed towards is multiplied by the spell's power divided by the mass. The result is added to the current speed vector.
+The order in which spells are computed in this order: Petrificus, Accio, Flipendo.
+The power of Accio is:
+MIN( 3000 / ( Dist / 1000 )2, 1000 )
+
+The power of Flipendo is:
+MIN( 6000 / ( Dist / 1000 )2, 1000 )
+
+where Dist is the distance between the targeted entity and the wizard who cast the spell. If Dist is zero, the spell has no effect.
+Movement: The speed vector is added to the position of the entity to compute its new position. If a collision occurs during the movement, the entities rebound off one another.
+Friction: the speed vector is multiplied by a constant.
+0.75 for wizards,
+0.9 for Bludgers and
+0.75 for Snaffles.
+The speed's values and the position's values are rounded using the "round half away from zero" method. For example, 23.5 gets rounded to 24, and −23.5 gets rounded to −24.
+ 	Game Input
+Initializaton input
+Line 1: one integer myTeamId for the id of your team
+myTeamId= 0: your goal is on the left
+myTeamId= 1: your goal is on the right.
+Input for one game turn
+First line: a string with 2 space separated integers for your score myScore and your magic points myMagic.
+
+Next line: a string with 2 space separated integers for your opponent score opponentScore and your opponent magic points opponentMagic.
+
+Next line: an integer entites for the number of entities currently in play.
+
+Next entites lines: one line per entity.
+
+Each entity is represented by a unique integer, a string and 5 more space separated integers: entityId, entityType, x, y, vx, vy & state.
+entityId is the unique id of this entity.
+entityType is a string indicating the type of entity. The value of this string can be:
+WIZARD for one of your wizards
+OPPONENT_WIZARD for an opposing wizard
+SNAFFLE
+BLUDGER
+x, y for the entity's position.
+vx, vy for the entity's speed vector.
+
+state can be:
+For a wizard:
+1: has grabbed a snaffle
+0: otherwise
+For a Snaffle:
+1: was grabbed by a wizard
+0: otherwise
+For a Bludger:
+the last victim's entityId
+-1: otherwise
+Output for one game turn
+One line for each one of your team's wizards: one of the following actions:
+
+MOVE x y thrust : the keyword MOVE followed by 3 integers: x y for the destination and the desired thrust power [0;150].
+THROW x y power : the keyword THROW followed by 3 integers: x y for the destination and the desired power [0;500].
+OBLIVIATE id : the keyword OBLIVIATE followed by one integer id, the entity id of a bludger.
+PETRIFICUS id : the keyword PETRIFICUS followed by one integer id, the entity id of the target [Bludger, Snaffle, opponent wizard].
+ACCIO id : the keyword ACCIO followed by one integer id, the entity id of the target [Bludger, Snaffle].
+FLIPENDO id : the keyword FLIPENDO followed by one integer id, the entity id of the target [Bludger, Snaffle, opponent wizard].
+Constraints
+0 ≤ entityId ≤ 12
+4 ≤ entities ≤ 13
+0 < x < 16000
+0 < y < 7500
+-106 < vx < 106
+-106 < vy < 106
+0 ≤ state ≤ 1
+Response time for the first turn ≤ 1000 ms
+Response time per turn ≤ 100 ms
+It’s coming back...
+The world cup of Quidditch, the most famous sport of the wizarding world, is back. You’ve been waiting for this day for a long time, practicing almost every day. But rumors say that the rules have changed. Will the balls be different? Or maybe the scoring will change? Will you be able to adapt? Can you fly as fast as before? All these questions are bursting in your head as you slowly walk through the players tunnel, hearing the roaring cheers from the crowd. Spectators from all over the world have gathered for this fantastic competition. Time to shine!
