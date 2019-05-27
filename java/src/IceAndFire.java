@@ -58,19 +58,17 @@ class Player {
 
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
-            if (friend.gold > 15) {
-                Action train = new Action(Action.TRAIN, "" + 1, 0, 1);
-                System.out.println(train.toAction());
-            } else {
 
-                InFPopulation population = new InFPopulation(friend.units, map);
-                population.generer();
+            InFPopulation population = new InFPopulation(friend, map);
+            population.generer();
 
-                System.err.println(friend.units.size());
-                System.err.println(population.toString());
-                System.out.println(((InFCaracteristic) population.getIndividu(0).getCaracteristique(0)).actions.get(0).toAction()
-                );
+            IIndividu best = population.getIndividu(0);
+
+            StringJoiner output = new StringJoiner(";");
+            for (ICaracteristic car : best.getListCaracteristics()) {
+                output.add(((InFCaracteristic) car).actions.get(0).toAction());
             }
+            System.out.println(output.toString());
         }
     }
 }
@@ -92,6 +90,47 @@ class Map {
             map[i][j] = String.valueOf(line.charAt(j));
     }
 
+    List<Vector> getOwnedAreas() {
+        List<Vector> owned = new ArrayList<Vector>();
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                String caze = map[i][j];
+                if (caze == OWNED_ACTIVE)
+                    owned.add(new Vector(i, j));
+            }
+        }
+        return owned;
+    }
+
+    List<Vector> getSpawnAreas(boolean onlyNewPlaces) {
+        List<Vector> spawn = new ArrayList<Vector>();
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                String caze = map[i][j];
+                if (caze == VOID)
+                    continue;
+                if (!onlyNewPlaces && caze.equals(OWNED_ACTIVE)) {
+                    spawn.add(new Vector(i, j));
+                } else {
+                    // can spawn here if neighboor is owned
+                    boolean neighboor = false;
+                    if (i > 0 && map[i - 1][j].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (j < 0 && map[i][j - 1].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (i < SIZE - 1 && map[i + 1][j].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (j < SIZE - 1 && map[i][j + 1].equals(OWNED_ACTIVE))
+                        neighboor = true;
+
+                    if (neighboor)
+                        spawn.add(new Vector(i, j));
+                }
+            }
+        }
+        return spawn;
+    }
 }
 
 class Team {
@@ -117,6 +156,13 @@ class Unit {
         this.y = y;
         this.id = id;
         this.level = level;
+    }
+
+    public static int cost(int level) {
+        if (level == 1)
+            return 10;
+        else
+            throw new RuntimeException("wrong level " + level);
     }
 }
 
@@ -152,7 +198,17 @@ class Action {
         if (action.equals(WAIT))
             return action;
         else
-            return action + " " + label + " " + x + " "+ y;
+            return action + " " + label + " " + x + " " + y;
+    }
+}
+
+class Vector {
+
+    int x, y;
+
+    public Vector(int i, int j) {
+        x = i;
+        y = j;
     }
 }
 
@@ -190,7 +246,7 @@ class InFCaracteristic implements ICaracteristic {
 
     @Override
     public int getSize() {
-        return 0;
+        return actions.size();
     }
 
     @Override
@@ -210,20 +266,20 @@ class InFIndividu extends Individu {
 
 class InFPopulation extends Population {
 
-    final static Random rnd = new Random(12345);
+    final static Random rnd = new Random(1234);
 
-    List<Unit> units;
+    Team team;
     Map map;
 
-    public InFPopulation(List<Unit> iunits, Map imap) {
-        units = iunits;
+    public InFPopulation(Team iteam, Map imap) {
+        team = iteam;
         map = imap;
     }
 
     @Override
     public void generer() {
         for (int i = 0; i < InFGenetic.NB_INDIVIDUS; i++) {
-            this.ajouterIndividu(generateIndividu(i));
+            this.addIndividu(generateIndividu(i));
         }
     }
 
@@ -231,24 +287,67 @@ class InFPopulation extends Population {
         InFIndividu individu = new InFIndividu();
 
         List<ICaracteristic> cars = new ArrayList<>();
-        for (Unit unit : units) {
-            // on car per unit
 
-            Action action = new Action(Action.MOVE, String.valueOf(unit.id), unit.x, unit.y);
-            List<Action> actions = new ArrayList<>();
-
-            for (int i = 0; i < InFGenetic.CARACTERISTIC_SIZE; i++) {
-                action = generateAction(action);
-                actions.add(action);
-            }
-
-            InFCaracteristic caracteristic = new InFCaracteristic(unit.id, actions);
-            cars.add(caracteristic);
+        for (Unit unit : team.units) {
+            cars.add(generateCaracteristic(unit, false));
+        }
+        for (Unit unit : createUnits()) {
+            cars.add(generateCaracteristic(unit, true));
         }
 
         individu.setListCaracteristiques(cars);
         individu.setName("Individu nb " + index);
         return individu;
+    }
+
+    public List<Unit> createUnits() {
+
+        List<Unit> units = new ArrayList<Unit>();
+
+        int income = team.income;
+        int army = team.units.size();
+        int armySafety = 3;
+        if (army - armySafety >= income) {
+            return units;
+        }
+
+        int money = team.gold;
+        int safety = 5;
+
+        while (money > safety) {
+
+            // randomly create new unit
+            int level = rnd.nextInt(1) + 1;
+            int cost = Unit.cost(level);
+            if (money - safety >= cost) {
+
+                // choose new place
+                List<Vector> places = map.getSpawnAreas(true);
+                Vector spawn = places.get(rnd.nextInt(places.size()));
+                units.add(new Unit(spawn.x, spawn.y, 12345, level));
+            }
+            money -= cost;
+        }
+
+        return units;
+    }
+
+    public ICaracteristic generateCaracteristic(Unit unit, boolean isNew) {
+        // on car per unit
+        Action action = new Action(Action.MOVE, String.valueOf(unit.id), unit.x, unit.y);
+        List<Action> actions = new ArrayList<>();
+
+        if (isNew) {
+            // new action is to spawn
+            actions.add(new Action(Action.TRAIN, String.valueOf(unit.level), unit.x, unit.y));
+        }
+
+        while (actions.size() < InFGenetic.CARACTERISTIC_SIZE) {
+            action = generateAction(action);
+            actions.add(action);
+        }
+
+        return new InFCaracteristic(unit.id, actions);
     }
 
     private Action generateAction(Action previous) {
@@ -373,7 +472,7 @@ interface IPopulation {
 
     IIndividu getIndividu(int i);
 
-    void ajouterIndividu(IIndividu individu);
+    void addIndividu(IIndividu individu);
 
     IEnvironment getEnvironnement();
 
@@ -593,7 +692,7 @@ class NaturalSelectionSimple extends NaturalSelection {
                 i.setName(i.getName() + "-Immigr�");
             }
             for (IIndividu i : actuels) {
-                this.getPopulation().ajouterIndividu(i);
+                this.getPopulation().addIndividu(i);
             }
         }/* SELECTION */
         List<IIndividu> selectionnes =
@@ -603,7 +702,7 @@ class NaturalSelectionSimple extends NaturalSelection {
             ISelection selectionCrossOver;
             try {
                 selectionCrossOver = new SelectionTirageAleatoire(2);/* On effectue autant de crossOver qu'il y a de couple (on peut avoir plusieurs fois les m�mes couples, sachant qu'ils ne
-        donneront pas forc�ment les m�me individus enfants */
+            donneront pas forc�ment les m�me individus enfants */
                 for (int i = 0; i < this.getNombreCouples(); i++) {/* Selection des individu pour le crossOver */
                     List<IIndividu> selCross = selectionCrossOver.select(this.getPopulation());
                     List<IIndividu> croises = this.getCrossOver().crossOver(selCross.get(0), selCross.get(1));/* Ajout aux individus selectionn�s */
@@ -621,7 +720,7 @@ class NaturalSelectionSimple extends NaturalSelection {
         }/* AJOUT DANS LA POPULATION */
         for (IIndividu i : nouveaux) {
             if (!this.getPopulation().getListIndividus().contains(i)) {
-                this.getPopulation().ajouterIndividu(i);
+                this.getPopulation().addIndividu(i);
             }
         }
         /* SELECTION */
@@ -1096,7 +1195,7 @@ abstract class Population implements IPopulation {
     }
 
     @Override
-    public void ajouterIndividu(IIndividu individu) {
+    public void addIndividu(IIndividu individu) {
         this.getListIndividus().add(individu);
     }
 
