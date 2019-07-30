@@ -3,6 +3,12 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
+import java.util.StringJoiner;
+
+///////////////////////////
+/////// GENETIC ICE AND FIRE
 
 interface IDarwin {
     IPopulation solve();
@@ -85,7 +91,7 @@ interface IPopulation {
 
     IIndividu getIndividu(int i);
 
-    void ajouterIndividu(IIndividu individu);
+    void addIndividu(IIndividu individu);
 
     IEnvironment getEnvironnement();
 
@@ -122,13 +128,389 @@ interface INaturalSelection {
     void nextGeneration();
 }
 
+class Player {
+
+    public static void main(String args[]) {
+        Scanner in = new Scanner(System.in);
+        int numberMineSpots = in.nextInt();
+        for (int i = 0; i < numberMineSpots; i++) {
+            int x = in.nextInt();
+            int y = in.nextInt();
+        }
+
+        // game loop
+        while (true) {
+
+            int gold = in.nextInt();
+            int income = in.nextInt();
+            Team friend = new Team(gold, income);
+
+            int opponentGold = in.nextInt();
+            int opponentIncome = in.nextInt();
+            Team enemy = new Team(opponentGold, opponentIncome);
+
+            Map map = new Map();
+            for (int i = 0; i < 12; i++) {
+                String line = in.next();
+                map.init(i, line);
+            }
+
+            int buildingCount = in.nextInt();
+            for (int i = 0; i < buildingCount; i++) {
+                int owner = in.nextInt();
+                int buildingType = in.nextInt();
+                int x = in.nextInt();
+                int y = in.nextInt();
+                Building building = new Building(x, y, buildingType);
+                if (owner == Team.OWNED)
+                    friend.buildings.add(building);
+                else
+                    enemy.buildings.add(building);
+            }
+            int unitCount = in.nextInt();
+            for (int i = 0; i < unitCount; i++) {
+                int owner = in.nextInt();
+                int unitId = in.nextInt();
+                int level = in.nextInt();
+                int x = in.nextInt();
+                int y = in.nextInt();
+                Unit unit = new Unit(x, y, unitId, level);
+                if (owner == Team.OWNED)
+                    friend.units.add(unit);
+                else
+                    enemy.units.add(unit);
+            }
+
+            // Write an action using System.out.println()
+            // To debug: System.err.println("Debug messages...");
+
+            InFPopulation population = new InFPopulation(friend, map);
+            population.generer();
+
+            IIndividu best = population.getIndividu(0);
+
+            StringJoiner output = new StringJoiner(";");
+            for (ICaracteristic car : best.getListCaracteristics()) {
+                output.add(((InFCaracteristic) car).actions.get(0).toAction());
+            }
+            System.out.println(output.toString());
+        }
+    }
+}
+
+///////////////////////////
+/////// GENETIC COMMONS
+
+class Map {
+    static final int SIZE = 12;
+    static final String VOID = "#";
+    static final String NEUTRAL = ".";
+    static final String OWNED_ACTIVE = "O";
+    static final String OWNED_INACTIVE = "o";
+    static final String OPPONENT_ACTIVE = "X";
+    static final String OPPONENT_INACTIVE = "x";
+
+    String[][] map = new String[SIZE][SIZE];
+
+    void init(int i, String line) {
+        for (int j = 0; j < line.length(); j++)
+            map[i][j] = String.valueOf(line.charAt(j));
+    }
+
+    List<Vector> getOwnedAreas() {
+        List<Vector> owned = new ArrayList<Vector>();
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                String caze = map[i][j];
+                if (caze == OWNED_ACTIVE)
+                    owned.add(new Vector(i, j));
+            }
+        }
+        return owned;
+    }
+
+    List<Vector> getSpawnAreas(boolean onlyNewPlaces) {
+        List<Vector> spawn = new ArrayList<Vector>();
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                String caze = map[i][j];
+                if (caze == VOID)
+                    continue;
+                if (!onlyNewPlaces && caze.equals(OWNED_ACTIVE)) {
+                    spawn.add(new Vector(i, j));
+                } else {
+                    // can spawn here if neighboor is owned
+                    boolean neighboor = false;
+                    if (i > 0 && map[i - 1][j].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (j < 0 && map[i][j - 1].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (i < SIZE - 1 && map[i + 1][j].equals(OWNED_ACTIVE))
+                        neighboor = true;
+                    if (j < SIZE - 1 && map[i][j + 1].equals(OWNED_ACTIVE))
+                        neighboor = true;
+
+                    if (neighboor)
+                        spawn.add(new Vector(i, j));
+                }
+            }
+        }
+        return spawn;
+    }
+
+
+}
+
+class Team {
+    static final int OWNED = 0;
+    static final int ENEMY = 1;
+
+    int gold;
+    int income;
+    List<Unit> units = new ArrayList<Unit>();
+    List<Building> buildings = new ArrayList<Building>();
+
+    public Team(int gold, int income) {
+        this.gold = gold;
+        this.income = income;
+    }
+}
+
+class Unit {
+    final int x, y, id, level;
+
+    public Unit(int x, int y, int id, int level) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.level = level;
+    }
+
+    public static int cost(int level) {
+        if (level == 1)
+            return 10;
+        else
+            throw new RuntimeException("wrong level " + level);
+    }
+}
+
+class Building {
+    static final int HQ = 0;
+
+    final int x, y, type;
+
+    public Building(int x, int y, int type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+    }
+}
+
+class Action {
+
+    static final String WAIT = "WAIT";
+    static final String MOVE = "MOVE";
+    static final String TRAIN = "TRAIN";
+
+    final String action, label;
+    final int x, y;
+
+    public Action(String action, String label, int x, int y) {
+        this.action = action;
+        this.label = label;
+        this.x = x;
+        this.y = y;
+    }
+
+    public String toAction() {
+        if (action.equals(WAIT))
+            return action;
+        else
+            return action + " " + label + " " + x + " " + y;
+    }
+}
+
+class Vector {
+
+    int x, y;
+
+    public Vector(int i, int j) {
+        x = i;
+        y = j;
+    }
+}
+
+class InFGenetic {
+    static final int CARACTERISTIC_SIZE = 10;
+    static final int NB_INDIVIDUS = 5;
+}
+
+/**
+ * Caracteristic is the path of actions for a single unit
+ */
+class InFCaracteristic implements ICaracteristic {
+
+    int id; // id of the unit
+    List<Action> actions;
+
+    public InFCaracteristic(int id, List<Action> actions) {
+        this.id = id;
+        this.actions = actions;
+    }
+
+    @Override
+    public String getName() {
+        return String.valueOf(id);
+    }
+
+    @Override
+    public BitSet getBitSet() {
+        return null;
+    }
+
+    @Override
+    public int getSize() {
+        return actions.size();
+    }
+
+    @Override
+    public void update() {
+    }
+
+    @Override
+    public ICaracteristic clone() {
+        return new InFCaracteristic(this.id, new ArrayList<>(this.actions));
+    }
+}
+
+class InFIndividu extends Individu {
+}
+
+class InFPopulation extends Population {
+
+    static final Random rnd = new Random(12345);
+    Team team;
+    Map map;
+
+    public InFPopulation(Team iteam, Map imap) {
+        team = iteam;
+        map = imap;
+    }
+
+    @Override
+    public void generer() {
+        for (int i = 0; i < InFGenetic.NB_INDIVIDUS; i++) {
+            this.addIndividu(generateIndividu(i));
+        }
+    }
+
+    public Individu generateIndividu(int index) {
+        InFIndividu individu = new InFIndividu();
+
+        List<ICaracteristic> cars = new ArrayList<>();
+
+        for (Unit unit : team.units) {
+            cars.add(generateCaracteristic(unit, false));
+        }
+        for (Unit unit : createUnits()) {
+            cars.add(generateCaracteristic(unit, true));
+        }
+
+        individu.setListCaracteristiques(cars);
+        individu.setName("Individu nb " + index);
+        return individu;
+    }
+
+    public List<Unit> createUnits() {
+
+        List<Unit> units = new ArrayList<Unit>();
+
+        int income = team.income;
+        int army = team.units.size();
+        int armySafety = 3;
+        if (army - armySafety >= income) {
+            return units;
+        }
+
+        int money = team.gold;
+        int safety = 5;
+
+        while (money > safety) {
+
+            // randomly create new unit
+            int level = rnd.nextInt(1) + 1;
+            int cost = Unit.cost(level);
+            if (money - safety >= cost) {
+
+                // choose new place
+                List<Vector> places = map.getSpawnAreas(true);
+                Vector spawn = places.get(rnd.nextInt(places.size()));
+                units.add(new Unit(spawn.x, spawn.y, 12345, level));
+            }
+            money -= cost;
+        }
+
+        return units;
+    }
+
+    public ICaracteristic generateCaracteristic(Unit unit, boolean isNew) {
+        // on car per unit
+        Action action = new Action(Action.MOVE, String.valueOf(unit.id), unit.x, unit.y);
+        List<Action> actions = new ArrayList<>();
+
+        if (isNew) {
+            // new action is to spawn
+            actions.add(new Action(Action.TRAIN, String.valueOf(unit.level), unit.x, unit.y));
+        }
+
+        while (actions.size() < InFGenetic.CARACTERISTIC_SIZE) {
+            action = generateAction(action);
+            actions.add(action);
+        }
+
+        return new InFCaracteristic(unit.id, actions);
+    }
+
+    private Action generateAction(Action previous) {
+
+        String action = Action.MOVE;
+        String label = previous.label;
+
+        int x = previous.x;
+        int y = previous.y;
+
+        boolean valid = false;
+        while (!valid) {
+            x += rnd.nextInt(3) - 1;
+            y += rnd.nextInt(3) - 1;
+
+            valid = validPosition(x, y);
+            valid &= x != previous.x || y != previous.y;
+            if (!valid) {
+                // retry
+                x = previous.x;
+                y = previous.y;
+            }
+        }
+
+        return new Action(action, label, x, y);
+    }
+
+    private boolean validPosition(int x, int y) {
+        if (x < 0 || y < 0)
+            return false;
+        if (x >= Map.SIZE || y >= Map.SIZE)
+            return false;
+        if (map.map[x][y].equals(Map.VOID))
+            return false;
+        return true;
+    }
+}
+
 class Darwin implements IDarwin {
     protected INaturalSelection selectionNaturelle;
-    protected boolean printStartingInfos,
-            printEndingInfos,
-            printChaqueGeneration,
-            printChaqueScore,
-            printIterations;
+    protected boolean printStartingInfos, printEndingInfos, printChaqueGeneration, printChaqueScore, printIterations;
     protected IEndingCondition conditionArret;
 
     public Darwin(INaturalSelection selectionNaturelle, IEndingCondition conditionArret) {
@@ -168,7 +550,8 @@ class Darwin implements IDarwin {
     }
 
     @Override
-    public IPopulation solve() {/* Affichage de la population initiale */
+    public IPopulation solve() {
+        /* Affichage de la population initiale */
         if (printStartingInfos) {
             System.err.println("-----------------------------------------------------");
             System.err.println("*****     DARWIN Genetic Solver version 1.0     *****");
@@ -178,35 +561,28 @@ class Darwin implements IDarwin {
             System.err.println("-----------------------------------------------------");
             System.err.println("*****          Population initiale :            *****");
             System.err.println("-----------------------------------------------------" + "\n");
-            System.err.println(
-                    this.getNaturalSelection().getPopulation()
-                            + "\n"
-                            + "Score : "
-                            + this.getNaturalSelection().getPopulation().evaluerPopulation()
-                            + "\n"
-                            + "\n");
+            System.err.println(this.getNaturalSelection().getPopulation() + "\n" + "Score : " + this.getNaturalSelection().getPopulation().evaluerPopulation() + "\n" + "\n");
             System.err.println("-----------------------------------------------------");
             System.err.println("*****   Demarrage de l'algorithme génétique     *****");
             System.err.println("-----------------------------------------------------" + "\n");
         }
         int iterations = 0;
-        while (this.getEndingCondition() != null) {/* Nouvelle g�n�ration */
-            this.getNaturalSelection().nextGeneration();/* Verification de la condition d'arr�t */
-            if (this.getEndingCondition().isSatisfied(this.getNaturalSelection().getPopulation())) {/* Application du nouvel environnement si besoin */
+        while (this.getEndingCondition() != null) {
+            /* Nouvelle g�n�ration */
+            this.getNaturalSelection().nextGeneration(); /* Verification de la condition d'arr�t */
+            if (this.getEndingCondition().isSatisfied(this.getNaturalSelection().getPopulation())) {
+                /* Application du nouvel environnement si besoin */
                 if (this.getEndingCondition().nextEnvironnement() != null) {
-                    this.getNaturalSelection()
-                            .getPopulation()
-                            .setEnvironnement(this.getEndingCondition().nextEnvironnement());
+                    this.getNaturalSelection().getPopulation().setEnvironnement(this.getEndingCondition().nextEnvironnement());
                 }
                 iterations = this.getEndingCondition().getNbIeration();
                 this.setEndingCondition(this.getEndingCondition().nextConditionArret());
-            }/* Affichages */
+            } /* Affichages */
             if (this.printChaqueGeneration) {
                 System.err.println(this.getNaturalSelection().getPopulation());
             }
             if (this.printChaqueScore) {
-                System.err.println(
-                        "Score : " + this.getNaturalSelection().getPopulation().evaluerPopulation());
+                System.err.println("Score : " + this.getNaturalSelection().getPopulation().evaluerPopulation());
             }
         }
         IPopulation popFinale = this.getNaturalSelection().getPopulation();
@@ -240,33 +616,11 @@ class NaturalSelectionSimple extends NaturalSelection {
     protected int nombreCouples;
     protected double probImmigration;
 
-    public NaturalSelectionSimple(
-            IPopulation pop,
-            int nbIndividusSelInit,
-            int nbCaracCross,
-            double pCross,
-            int nbBitMut,
-            double pMut,
-            int nbCouples,
-            double probIm) {
-        this(
-                new SelectionTournoi(nbIndividusSelInit),
-                new SelectionElitiste(pop.getTailleSouhaitee()),
-                new CrossOverSimple(nbCaracCross, pCross),
-                new MutationSimple(nbBitMut, pMut),
-                pop,
-                nbCouples,
-                probIm);
+    public NaturalSelectionSimple(IPopulation pop, int nbIndividusSelInit, int nbCaracCross, double pCross, int nbBitMut, double pMut, int nbCouples, double probIm) {
+        this(new SelectionTournoi(nbIndividusSelInit), new SelectionElitiste(pop.getTailleSouhaitee()), new CrossOverSimple(nbCaracCross, pCross), new MutationSimple(nbBitMut, pMut), pop, nbCouples, probIm);
     }
 
-    public NaturalSelectionSimple(
-            ISelection selInit,
-            ISelection selFin,
-            ICrossOver cross,
-            IMutation mut,
-            IPopulation pop,
-            int nbCouples,
-            double probImmigration) {
+    public NaturalSelectionSimple(ISelection selInit, ISelection selFin, ICrossOver cross, IMutation mut, IPopulation pop, int nbCouples, double probImmigration) {
         super(selInit, selFin, cross, mut, pop);
         if (nbCouples < 0) {
             System.err.println("Nombre de couples indiqu� < 0");
@@ -285,7 +639,8 @@ class NaturalSelectionSimple extends NaturalSelection {
     }
 
     @Override
-    public void nextGeneration() {/* IMMIGRATION */
+    public void nextGeneration() {
+        /* IMMIGRATION */
         boolean doImmigration = false;
         if (this.probImmigration == 1) {
             doImmigration = true;
@@ -305,35 +660,34 @@ class NaturalSelectionSimple extends NaturalSelection {
                 i.setName(i.getName() + "-Immigr�");
             }
             for (IIndividu i : actuels) {
-                this.getPopulation().ajouterIndividu(i);
+                this.getPopulation().addIndividu(i);
             }
-        }/* SELECTION */
-        List<IIndividu> selectionnes =
-                new ArrayList<IIndividu>(this.getSelectionInitiale().select(this.getPopulation()));
-        List<IIndividu> nouveaux = new ArrayList<IIndividu>();/* CROSSOVER */
+        } /* SELECTION */
+        List<IIndividu> selectionnes = new ArrayList<IIndividu>(this.getSelectionInitiale().select(this.getPopulation()));
+        List<IIndividu> nouveaux = new ArrayList<IIndividu>(); /* CROSSOVER */
         if (this.crossOverPossible()) {
             ISelection selectionCrossOver;
             try {
-                selectionCrossOver = new SelectionTirageAleatoire(2);/* On effectue autant de crossOver qu'il y a de couple (on peut avoir plusieurs fois les m�mes couples, sachant qu'ils ne
-        donneront pas forc�ment les m�me individus enfants */
-                for (int i = 0; i < this.getNombreCouples(); i++) {/* Selection des individu pour le crossOver */
+                selectionCrossOver = new SelectionTirageAleatoire(2); /* On effectue autant de crossOver qu'il y a de couple (on peut avoir plusieurs fois les m�mes couples, sachant qu'ils ne
+                    donneront pas forc�ment les m�me individus enfants */
+                for (int i = 0; i < this.getNombreCouples(); i++) {
+                    /* Selection des individu pour le crossOver */
                     List<IIndividu> selCross = selectionCrossOver.select(this.getPopulation());
-                    List<IIndividu> croises = this.getCrossOver().crossOver(selCross.get(0), selCross.get(1));/* Ajout aux individus selectionn�s */
+                    List<IIndividu> croises = this.getCrossOver().crossOver(selCross.get(0), selCross.get(1)); /* Ajout aux individus selectionn�s */
                     nouveaux.addAll(croises);
                 }
             } catch (Exception e) {
-                System.err.println(
-                        "Erreur dans l'initialisation de la selection des couples pour le crossOver");
+                System.err.println("Erreur dans l'initialisation de la selection des couples pour le crossOver");
                 e.printStackTrace();
             }
         }
         /* MUTATION (Tous les selectionn�s y sont soumis)*/
         for (IIndividu i : selectionnes) {
             nouveaux.add(this.getMutation().muter(i));
-        }/* AJOUT DANS LA POPULATION */
+        } /* AJOUT DANS LA POPULATION */
         for (IIndividu i : nouveaux) {
             if (!this.getPopulation().getListIndividus().contains(i)) {
-                this.getPopulation().ajouterIndividu(i);
+                this.getPopulation().addIndividu(i);
             }
         }
         /* SELECTION */
@@ -349,7 +703,8 @@ class SelectionTirageAleatoire extends Selection {
     @Override
     public List<IIndividu> select(IPopulation population) {
         /* On s'assure qu'il est possible d'effectuer la selection (si ce n'est pas le cas on renvoie la population inchang�e */
-        if (this.selectionPossible(population)) {/* Initialisation de la liste des individus selectionn�s */
+        if (this.selectionPossible(population)) {
+            /* Initialisation de la liste des individus selectionn�s */
             List<IIndividu> selectionnes = new ArrayList<IIndividu>();
             for (int i = 0; i < this.nbIndivus; i++) {
                 IIndividu individu;
@@ -360,8 +715,7 @@ class SelectionTirageAleatoire extends Selection {
             }
             return selectionnes;
         } else {
-            System.err.println(
-                    "Selection impossible, plus d'individus � select que d'individus pr�sents dans la population");
+            System.err.println("Selection impossible, plus d'individus � select que d'individus pr�sents dans la population");
             return population.getListIndividus();
         }
     }
@@ -396,18 +750,15 @@ class SelectionTournoi extends Selection {
                 /* On shuffle la liste */
                 Collections.shuffle(individus);
                 /* On v�rifie que la liste est paire ou on g�re le cas impaire*/
-                int size =
-                        (individus.size() % 2 == 0) ? (int) (individus.size()) : (int) (individus.size() - 1.0);
+                int size = (individus.size() % 2 == 0) ? (int) (individus.size()) : (int) (individus.size() - 1.0);
                 /* On confronte les individus deux � deux de suite dans la liste m�lang�e */
                 for (int i = 0; i < size; i += 2) {
                     IIndividu id1 = individus.get(i);
                     IIndividu id2 = individus.get(i + 1);
-                    IIndividu gagnant =
-                            population.evaluerIndividu(id1) > population.evaluerIndividu(id2) ? id1 : id2;
+                    IIndividu gagnant = population.evaluerIndividu(id1) > population.evaluerIndividu(id2) ? id1 : id2;
                     individusCourant.add(gagnant);
                 }
-                if (size
-                        == individus.size() - 1) /* Cas ou le liste est impaire on ajoute le dernier �l�ment*/
+                if (size == individus.size() - 1) /* Cas ou le liste est impaire on ajoute le dernier �l�ment*/
                     individusCourant.add(individus.get(individus.size() - 1));
                 /* Appel recursif de la m�thode */
                 tournoi(individusCourant, population);
@@ -423,8 +774,7 @@ class SelectionTournoi extends Selection {
                     /* On se fait affronter le bon nombre d'individus */
                     IIndividu id1 = individus.get(i);
                     IIndividu id2 = individus.get(i + 1);
-                    IIndividu gagnant =
-                            population.evaluerIndividu(id1) > population.evaluerIndividu(id2) ? id1 : id2;
+                    IIndividu gagnant = population.evaluerIndividu(id1) > population.evaluerIndividu(id2) ? id1 : id2;
                     individusCourant.add(gagnant);
                 }
                 for (int i = 2 * nombreDAffrontements; i < individus.size(); i++) {
@@ -450,8 +800,7 @@ class SelectionElitiste extends Selection {
     @Override
     public List<IIndividu> select(IPopulation population) {
         /* On s'assure qu'il est possible d'effectuer la selection (si ce n'est pas le cas on renvoie la population inchang�e */
-        if (this.selectionPossible(population)
-                || !(this.nbIndivus == population.getTailleSouhaitee())) {
+        if (this.selectionPossible(population) || !(this.nbIndivus == population.getTailleSouhaitee())) {
             /* Initialisation de la liste des individus selectionn�s
              * On garde ce tableau de taille fixe en mettant � jour � chaque fois les
              * this.nbIndivi meilleurs individus en complexit� donc direment de O(n) */
@@ -465,8 +814,7 @@ class SelectionElitiste extends Selection {
                     double evaluationCourante = population.evaluerIndividu(population.getIndividu(i));
                     int indexBest = 0;
                     while (indexBest < this.nbIndivus) {
-                        if (selectionnes.get(indexBest) == null
-                                || evaluationCourante > population.evaluerIndividu(selectionnes.get(indexBest))) {
+                        if (selectionnes.get(indexBest) == null || evaluationCourante > population.evaluerIndividu(selectionnes.get(indexBest))) {
                             /* On ajoute l'individu courant � la liste des selectionn�s au bon index*/
                             /* 2 �tapes :*/
                             /* 1�) D�caler les indices sup�rieurs d'un rang de 1 car on ins�re un nouvel �l�ment*/
@@ -480,7 +828,8 @@ class SelectionElitiste extends Selection {
                             selectionnes.set(indexBest, population.getIndividu(i));
                             /* Toutes les modifications �tant apport�es, on sort de la boucle */
                             indexBest = this.nbIndivus + 1;
-                        } else indexBest++;
+                        } else
+                            indexBest++;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -488,8 +837,7 @@ class SelectionElitiste extends Selection {
             }
             return selectionnes;
         } else {
-            System.err.println(
-                    "Selection impossible, plus d'individus � select que d'individus pr�sents dans la population");
+            System.err.println("Selection impossible, plus d'individus � select que d'individus pr�sents dans la population");
             return population.getListIndividus();
         }
     }
@@ -506,15 +854,13 @@ class CrossOverSimple extends CrossOver {
 
     @Override
     public List<IIndividu> crossOver(IIndividu individu1, IIndividu individu2) {
-        ArrayList<IIndividu> retour =
-                new ArrayList<IIndividu>(Arrays.asList(new IIndividu[]{individu1, individu2}));
+        ArrayList<IIndividu> retour = new ArrayList<IIndividu>(Arrays.asList(new IIndividu[]{individu1, individu2}));
         if (this.doCrossOver() && individu1.getType().equals(individu2.getType())) {
             int nbTotalCaracteres = individu1.getNombreCaracteristiques();
             /* On s'assure que les individus contiennent au moins n+1 caract�res */
-            int nbCaracteresEffectif =
-                    (this.nbCaracteres < nbTotalCaracteres) ? this.nbCaracteres : nbTotalCaracteres;
+            int nbCaracteresEffectif = (this.nbCaracteres < nbTotalCaracteres) ? this.nbCaracteres : nbTotalCaracteres;
             IIndividu n1 = individu1.clone();
-            IIndividu n2 = individu2.clone();/* On choisi au hasard les caract�res � interchanger et on effectue le crossOver*/
+            IIndividu n2 = individu2.clone(); /* On choisi au hasard les caract�res � interchanger et on effectue le crossOver*/
             for (int i = 0; i < nbCaracteresEffectif; i++) {
                 int j = (int) (Math.random() * nbTotalCaracteres);
                 ICaracteristic c1 = n1.getListCaracteristics().get(j).clone();
@@ -585,51 +931,6 @@ class MutationSimple extends Mutation {
     @Override
     public boolean mutationIndividuPossible(IIndividu individu) {
         return (individu.getNombreCaracteristiques() != 0);
-    }
-}
-
-abstract class Caracteristic implements ICaracteristic {
-    protected BitSet bitSet;
-    protected int tailleBitSet;
-    protected String nom;
-
-    protected Caracteristic() {
-    }
-
-    protected Caracteristic(String nom, BitSet bitSet, int tailleBitSet) {
-        this.tailleBitSet = tailleBitSet;
-        this.bitSet = bitSet;
-        this.nom = nom;
-    }
-
-    protected Caracteristic(Caracteristic c) {
-        this.nom = new String(c.getName());
-        this.bitSet = (BitSet) c.getBitSet().clone();
-        this.tailleBitSet = c.tailleBitSet;
-    }
-
-    @Override
-    public BitSet getBitSet() {
-        return this.bitSet;
-    }
-
-    @Override
-    public String getName() {
-        return this.nom;
-    }
-
-    @Override
-    public int getSize() {
-        return this.tailleBitSet;
-    }
-
-    @Override
-    public abstract void update();
-
-    public abstract Caracteristic clone();
-
-    public String toString() {
-        return "Caracteristic " + nom + " [bitSet = " + bitSet + "]";
     }
 }
 
@@ -732,7 +1033,7 @@ abstract class Environment implements IEnvironment {
     }
 }
 
-abstract class Individu implements IIndividu {
+class Individu implements IIndividu {
     protected int type;
     protected String name;
     protected List<ICaracteristic> caracteristiques;
@@ -754,6 +1055,11 @@ abstract class Individu implements IIndividu {
         for (ICaracteristic c : i.getListCaracteristics()) {
             this.caracteristiques.add(c.clone());
         }
+    }
+
+    @Override
+    public IIndividu clone() {
+        return new Individu(this);
     }
 
     @Override
@@ -791,18 +1097,6 @@ abstract class Individu implements IIndividu {
         return this.type;
     }
 
-    public abstract Individu clone();/*public boolean equals(Object o){
-    boolean retour = false;
-    if(o instanceof Individu){
-      retour = true;
-      Individu i = (Individu) o;
-      for(int j=0; j<this.getNombreCaracteristiques(); j++){
-        retour = retour && this.getCaracteristique(j).equals(i.getCaracteristique(j));
-      }
-    }
-    return retour;
-  }*/
-
     public String toString() {
         String retour = "Individu " + name + ", caracteristiques = ";
         for (ICaracteristic c : this.getListCaracteristics()) {
@@ -822,7 +1116,8 @@ abstract class Mutation implements IMutation {
     protected Mutation(double prob) {
         if (prob < 0 || prob > 1)
             System.err.println("Probabilit� de mutation non comprise entre 0 et 1");
-        else this.probabilite = prob;
+        else
+            this.probabilite = prob;
     }
 
     public abstract IIndividu muter(IIndividu individu);
@@ -859,7 +1154,7 @@ abstract class Population implements IPopulation {
     }
 
     @Override
-    public void ajouterIndividu(IIndividu individu) {
+    public void addIndividu(IIndividu individu) {
         this.getListIndividus().add(individu);
     }
 
@@ -953,8 +1248,10 @@ abstract class Selection implements ISelection {
     }
 
     protected Selection(int nbIndividus) {
-        if (nbIndividus < 1) System.err.println("Nombre d'individus � select < 1");
-        else this.nbIndivus = nbIndividus;
+        if (nbIndividus < 1)
+            System.err.println("Nombre d'individus � select < 1");
+        else
+            this.nbIndivus = nbIndividus;
     }
 
     @Override
@@ -973,8 +1270,7 @@ abstract class NaturalSelection implements INaturalSelection {
     protected IMutation mutation;
     protected IPopulation population;
 
-    protected NaturalSelection(
-            ISelection selInit, ISelection selFin, ICrossOver cross, IMutation mut, IPopulation pop) {
+    protected NaturalSelection(ISelection selInit, ISelection selFin, ICrossOver cross, IMutation mut, IPopulation pop) {
         this.selectionInitiale = selInit;
         this.selectionFinale = selFin;
         this.crossOver = cross;
@@ -1014,3 +1310,13 @@ abstract class NaturalSelection implements INaturalSelection {
         return this.getPopulation().getTailleEffective() >= 2;
     }
 }
+
+
+class Logger {
+
+    public static void error(String flag, String message) {
+        System.err.println(flag + " >> " + message);
+    }
+}
+
+
