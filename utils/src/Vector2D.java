@@ -29,6 +29,17 @@ public class Vector2D {
         y = 0;
     }
 
+    public int getIntX(){
+        Double x = this.x;
+        return x.intValue();
+    }
+
+
+    public int getIntY(){
+        Double y = this.y;
+        return y.intValue();
+    }
+
     public double[] getComponents() {
         return new double[]{x, y};
     }
