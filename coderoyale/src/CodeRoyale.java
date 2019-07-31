@@ -42,14 +42,14 @@ class Player {
                 int siteId = in.nextInt();
                 if (env.getSite(siteId).isPresent()) {
                     Site previous = env.getSite(siteId).get();
-                    int ignore1 = in.nextInt(); // used in future leagues
-                    int ignore2 = in.nextInt(); // used in future leagues
+                    int gold = in.nextInt(); // The total number of gold remaining to be mined from this site (-1 if unknown)
+                    int maxMineSize = in.nextInt(); // The maximum rate that a mine can extract gold from this site (-1 if unknown)
                     int structureType = in.nextInt(); // -1 = No structure, 2 = Barracks
                     int owner = in.nextInt(); // -1 = No structure, 0 = Friendly, 1 = Enemy
                     int param1 = in.nextInt();
                     int param2 = in.nextInt();
                     env.sites.remove(previous);
-                    env.sites.add(Site.build(siteId, previous.location, previous.radius, ignore1, ignore2, structureType, owner, param1, param2));
+                    env.sites.add(Site.build(siteId, previous.location, previous.radius, gold, maxMineSize, structureType, owner, param1, param2));
                 } else {
                     System.err.println("Unknown site with id " + siteId);
                 }
@@ -172,18 +172,32 @@ class StupidSolver implements Solver {
         if (siteId != -1) {
             if (e.getSite(siteId).isPresent()) {
                 Site site = e.getSite(siteId).get();
-                if (site instanceof EmptySite || (site instanceof Structure && !((Structure) site).isFriend) || site instanceof Tower && ((Tower) site).life < 500) {
 
-                    long nbKnightBarracks = e.sites.stream().filter(s -> s instanceof KnightBarracks).filter(s -> ((Structure) s).isFriend).count();
-                    long nbArcherBarracks = e.sites.stream().filter(s -> s instanceof ArcherBarracks).filter(s -> ((Structure) s).isFriend).count();
+                long nbKnightBarracks = e.sites.stream().filter(s -> s instanceof KnightBarracks).filter(s -> ((Structure) s).isFriend).count();
+                long nbArcherBarracks = e.sites.stream().filter(s -> s instanceof ArcherBarracks).filter(s -> ((Structure) s).isFriend).count();
+                long totalIncome = e.sites.stream().filter(s -> s instanceof Mine).filter(s -> ((Structure) s).isFriend).mapToInt(s -> ((Mine) s).income).sum();
 
-                    String type = "";
-                    if (nbKnightBarracks < 1) {
+                String type = "";
+                if (site instanceof EmptySite || (site instanceof Structure && !((Structure) site).isFriend)) {
+
+                    if (totalIncome < 5 && site.maxMineSize > 2) {
+                        type += "MINE";
+                    } else if (nbKnightBarracks < 1) {
                         type += "BARRACKS-KNIGHT";
                     } else if (nbArcherBarracks < 1) {
                         type += "BARRACKS-ARCHER";
                     } else
                         type += "TOWER";
+                }
+
+                if (totalIncome < 5 && site instanceof Mine && ((Mine) site).income < ((Mine) site).maxMineSize) {
+                    type += "MINE";
+                }
+                if (site instanceof Tower && ((Tower) site).life < 500) {
+                    type += "TOWER";
+                }
+
+                if (!type.isEmpty()) {
                     System.out.println("BUILD " + siteId + " " + type);
                     nextStrategy = false;
                 }
@@ -322,8 +336,10 @@ abstract class Site {
     int id;
     Vector2D location;
     int radius;
+    int gold;
+    int maxMineSize;
 
-    static Site build(int siteId, Vector2D location, int radius, int ignore1, int ignore2, int structureType, int owner, int param1, int param2) {
+    static Site build(int siteId, Vector2D location, int radius, int gold, int maxMineSize, int structureType, int owner, int param1, int param2) {
         Site site = null;
         if (structureType == 2) {
             // barrack
@@ -343,6 +359,10 @@ abstract class Site {
             site = new Tower();
             ((Tower) site).life = param1;
             ((Tower) site).range = param2;
+        } else if (structureType == 0) {
+            // tower
+            site = new Mine();
+            ((Mine) site).income = param1;
         } else {
             // empty
             site = new EmptySite();
@@ -351,6 +371,8 @@ abstract class Site {
         site.id = siteId;
         site.location = location;
         site.radius = radius;
+        site.gold = gold;
+        site.maxMineSize = maxMineSize;
         if (site instanceof Structure) {
             ((Structure) site).isFriend = owner == 0;
         }
@@ -383,6 +405,10 @@ class EmptySite extends Site {
 
 abstract class Structure extends Site {
     boolean isFriend;
+}
+
+class Mine extends Structure {
+    int income;
 }
 
 class Tower extends Structure {
