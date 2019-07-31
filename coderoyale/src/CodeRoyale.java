@@ -88,15 +88,13 @@ class Player {
 
 class StupidSolver implements Solver {
 
-    boolean knightOrArcherSwitch = true;
-
     @Override
     public void solve(Env e) {
         queenAction(e);
         trainAction(e);
     }
 
-    public void queenAction(Env e) {
+    private void queenAction(Env e) {
         boolean nextStrategy;
         nextStrategy = build(e);
         if (nextStrategy) {
@@ -111,12 +109,19 @@ class StupidSolver implements Solver {
         boolean nextStrategy = true;
 
         Vector2D queenPos = e.friend.getQeen().position;
-        System.err.println(queenPos);
         Optional<Site> next = e.sites.stream().filter(s -> s instanceof EmptySite).min(Comparator.comparing(site -> site.location.distance(queenPos)));
 
         if (next.isPresent()) {
+            // move to next empty place
             System.out.println("MOVE " + next.get().location.getIntX() + " " + next.get().location.getIntY());
             nextStrategy = false;
+        } else {
+            // move to smallest tower
+            next = e.sites.stream().filter(s -> s instanceof Tower).filter(s -> ((Structure) s).isFriend).min(Comparator.comparing(s -> ((Tower) s).life));
+            if (next.isPresent()) {
+                System.out.println("MOVE " + next.get().location.getIntX() + " " + next.get().location.getIntY());
+                nextStrategy = false;
+            }
         }
 
         return nextStrategy;
@@ -125,11 +130,29 @@ class StupidSolver implements Solver {
     public void trainAction(Env e) {
 
         List<Integer> trainSites = new ArrayList<>();
-        // Train knights
-        if (e.friend.gold > KnightBarracks.trainCost) {
-            Optional<Site> knightBarrack = e.sites.stream().filter(s -> s instanceof KnightBarracks).filter(s -> ((KnightBarracks) s).isFriend).min(Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().position)));
-            knightBarrack.ifPresent(site -> trainSites.add(site.id));
-            e.friend.gold -= KnightBarracks.trainCost;
+        long nbKnights = e.friend.units.stream().filter(unit -> unit instanceof Knight).count();
+        long nbArcher = e.friend.units.stream().filter(unit -> unit instanceof Archer).count();
+
+        if (nbKnights == 0 || nbArcher > 2) {
+            // Train knights
+            if (e.friend.gold > KnightBarracks.trainCost) {
+                Optional<Site> knightBarrack = e.sites.stream().filter(s -> s instanceof KnightBarracks).filter(s -> ((Structure) s).isFriend).filter(s -> ((Barracks) s).available()).min(Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().position)));
+                knightBarrack.ifPresent(site -> {
+                    trainSites.add(site.id);
+                    e.friend.gold -= KnightBarracks.trainCost;
+                });
+
+            }
+        } else {
+            // Train archers
+            if (e.friend.gold > ArcherBarracks.trainCost) {
+                Optional<Site> archerBarrack = e.sites.stream().filter(s -> s instanceof ArcherBarracks).filter(s -> ((Structure) s).isFriend).filter(s -> ((Barracks) s).available()).min(Comparator.comparing(site -> site.location.distance(e.friend.getQeen().position)));
+                archerBarrack.ifPresent(site -> {
+                    trainSites.add(site.id);
+                    e.friend.gold -= ArcherBarracks.trainCost;
+                });
+
+            }
         }
 
         StringBuilder s = new StringBuilder("TRAIN");
@@ -149,14 +172,18 @@ class StupidSolver implements Solver {
         if (siteId != -1) {
             if (e.getSite(siteId).isPresent()) {
                 Site site = e.getSite(siteId).get();
-                if (site instanceof EmptySite || (site instanceof Structure && !((Structure) site).isFriend)) {
-                    String type = "BARRACKS-";
-                    if (knightOrArcherSwitch) {
-                        type += "KNIGHT";
-                    } else {
-                        type += "ARCHER";
-                    }
-                    knightOrArcherSwitch = !knightOrArcherSwitch;
+                if (site instanceof EmptySite || (site instanceof Structure && !((Structure) site).isFriend) || site instanceof Tower && ((Tower) site).life < 500) {
+
+                    long nbKnightBarracks = e.sites.stream().filter(s -> s instanceof KnightBarracks).filter(s -> ((Structure) s).isFriend).count();
+                    long nbArcherBarracks = e.sites.stream().filter(s -> s instanceof ArcherBarracks).filter(s -> ((Structure) s).isFriend).count();
+
+                    String type = "";
+                    if (nbKnightBarracks < 1) {
+                        type += "BARRACKS-KNIGHT";
+                    } else if (nbArcherBarracks < 1) {
+                        type += "BARRACKS-ARCHER";
+                    } else
+                        type += "TOWER";
                     System.out.println("BUILD " + siteId + " " + type);
                     nextStrategy = false;
                 }
@@ -299,8 +326,25 @@ abstract class Site {
     static Site build(int siteId, Vector2D location, int radius, int ignore1, int ignore2, int structureType, int owner, int param1, int param2) {
         Site site = null;
         if (structureType == 2) {
-            site = new KnightBarracks();
+            // barrack
+            if (param2 == 0)
+                site = new KnightBarracks();
+            else if (param2 == 1)
+                site = new ArcherBarracks();
+            else if (param2 == 2)
+                site = new GiantBarracks();
+            else {
+                System.err.println("Wrong barrackType " + param2);
+            }
+            assert site != null;
+            ((Barracks) site).working = param1;
+        } else if (structureType == 1) {
+            // tower
+            site = new Tower();
+            ((Tower) site).life = param1;
+            ((Tower) site).range = param2;
         } else {
+            // empty
             site = new EmptySite();
         }
 
@@ -341,7 +385,24 @@ abstract class Structure extends Site {
     boolean isFriend;
 }
 
+class Tower extends Structure {
+    int life;
+    int range;
+
+    @Override
+    public String toString() {
+        return "Tower{" + "id=" + id + ", location=" + location + ", radius=" + radius + ", isFriend=" + isFriend + ", life=" + life + ", range=" + range + '}';
+    }
+}
+
 abstract class Barracks extends Structure {
+
+    int working;
+
+    public boolean available() {
+        return working <= 0;
+    }
+
 }
 
 class KnightBarracks extends Barracks {
@@ -350,7 +411,7 @@ class KnightBarracks extends Barracks {
     static int nbUnitTrained = 4;
     static int trainingTime = Integer.MAX_VALUE;  // TODO compute
 
-    public KnightBarracks() {
+    KnightBarracks() {
         super();
     }
 
@@ -362,7 +423,7 @@ class ArcherBarracks extends Barracks {
     static int nbUnitTrained = 2;
     static int trainingTime = Integer.MAX_VALUE;  // TODO compute
 
-    public ArcherBarracks() {
+    ArcherBarracks() {
         super();
     }
 
@@ -370,6 +431,14 @@ class ArcherBarracks extends Barracks {
     public String toString() {
         return "ArcherBarracks{" + "id=" + id + ", location=" + location + ", radius=" + radius + ", isFriend=" + isFriend + ", trainCost=" + trainCost + ", nbUnitTrained=" + nbUnitTrained + ", trainingTime=" + trainingTime + '}';
     }
+}
+
+class GiantBarracks extends Barracks {
+
+    static int trainCost = 140;
+    static int nbUnitTrained = 1;
+    static int trainingTime = Integer.MAX_VALUE;  // TODO compute
+
 }
 
 class Vector2D {
