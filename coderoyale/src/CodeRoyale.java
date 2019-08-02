@@ -1,16 +1,14 @@
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 interface Solver {
 
-  void solve(Env e);
+  Action solve(Env e);
 }
 
 /**
@@ -86,14 +84,14 @@ class Player {
       }
       env.friend.getQeen().touchedSite = touchedSite;
 
-      // Write an action using System.out.println()
       System.err.println(env.toString());
 
-      Evaluator evaluator = new Evaluator();
-      evaluator.evaluate(env);
+      Simulator simulator = new Simulator();
+      Env next = simulator.simulate(env, null, null);
+      env.printDiff(next);
 
       Solver solver = new StupidSolver();
-      solver.solve(env);
+      solver.solve(env).print();
       // First line: A valid queen action
       // Second line: A set of training instructions
     }
@@ -103,106 +101,27 @@ class Player {
 class StupidSolver implements Solver {
 
   @Override
-  public void solve(Env e) {
-    queenAction(e);
-    trainAction(e);
+  public Action solve(Env e) {
+    Action action = new Action();
+    action.queen = queenAction(e);
+    action.train = trainAction(e);
+    return action;
   }
 
-  private void queenAction(Env e) {
-    boolean nextStrategy;
-    nextStrategy = build(e);
-    if (nextStrategy) {
-      nextStrategy = moveToNextSite(e);
-      if (nextStrategy) {
-        nothing();
+  private QueenAction queenAction(Env e) {
+    QueenAction next = null;
+    next = build(e);
+    if (next == null) {
+      next = moveToNextSite(e);
+      if (next == null) {
+        next = nothing();
       }
     }
+    return next;
   }
 
-  private boolean moveToNextSite(Env e) {
-    boolean nextStrategy = true;
-
-    Vector2D queenPos = e.friend.getQeen().position;
-    Optional<Site> next =
-        e.sites.stream()
-            .filter(s -> s instanceof EmptySite)
-            .min(Comparator.comparing(site -> site.location.distance(queenPos)));
-
-    if (next.isPresent()) {
-      // move to next empty place
-      System.out.println(
-          "MOVE " + next.get().location.getIntX() + " " + next.get().location.getIntY());
-      nextStrategy = false;
-    } else {
-      // move to smallest tower
-      next =
-          e.sites.stream()
-              .filter(s -> s instanceof Tower)
-              .filter(s -> ((Structure) s).isFriend)
-              .min(Comparator.comparing(s -> ((Tower) s).life));
-      if (next.isPresent()) {
-        System.out.println(
-            "MOVE " + next.get().location.getIntX() + " " + next.get().location.getIntY());
-        nextStrategy = false;
-      }
-    }
-
-    return nextStrategy;
-  }
-
-  public void trainAction(Env e) {
-
-    List<Integer> trainSites = new ArrayList<>();
-    long nbKnights = e.friend.units.stream().filter(unit -> unit instanceof Knight).count();
-    long nbArcher = e.friend.units.stream().filter(unit -> unit instanceof Archer).count();
-    long nbGiants = e.friend.units.stream().filter(unit -> unit instanceof Giant).count();
-
-    if (nbKnights == 0 || nbGiants != 0) {
-      // Train knights
-      Optional<Site> knightBarrack =
-          e.sites.stream()
-              .filter(s -> s instanceof KnightBarracks)
-              .filter(s -> ((Structure) s).isFriend)
-              .filter(s -> ((Barracks) s).available())
-              .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
-              .min(
-                  Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().position)));
-      knightBarrack.ifPresent(
-          site -> {
-            trainSites.add(site.id);
-            e.friend.gold -= ((Barracks) site).trainCost;
-          });
-    } else {
-      // Train giants
-      Optional<Site> giantBarracks =
-          e.sites.stream()
-              .filter(s -> s instanceof GiantBarracks)
-              .filter(s -> ((Structure) s).isFriend)
-              .filter(s -> ((Barracks) s).available())
-              .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
-              .min(
-                  Comparator.comparing(
-                      site -> site.location.distance(e.friend.getQeen().position)));
-      giantBarracks.ifPresent(
-          site -> {
-            trainSites.add(site.id);
-            e.friend.gold -= ((Barracks) site).trainCost;
-          });
-    }
-
-    StringBuilder s = new StringBuilder("TRAIN");
-    for (Integer id : trainSites) {
-      s.append(" ").append(id);
-    }
-    System.out.println(s);
-  }
-
-  private void nothing() {
-    System.out.println("WAIT");
-  }
-
-  private boolean build(Env e) {
-    boolean nextStrategy = true;
+  private Build build(Env e) {
+    Build buildAction = null;
     int siteId = e.friend.getQeen().touchedSite;
     if (siteId != -1) {
       if (e.getSite(siteId).isPresent()) {
@@ -231,52 +150,140 @@ class StupidSolver implements Solver {
                 .sum();
         long minIncome = 10;
 
-        String type = "";
+        Structure building = null;
         if (site instanceof EmptySite
             || (site instanceof Structure && !((Structure) site).isFriend)) {
 
           if (totalIncome < minIncome && site.maxMineSize > 2 && site.gold > 100) {
-            type += "MINE";
+            building = new Mine();
           } else if (nbKnightBarracks < 1) {
-            type += "BARRACKS-KNIGHT";
+            building = new KnightBarracks();
           } else if (nbGiantBarracks < 1) {
-            type += "BARRACKS-GIANT";
-          } else type += "TOWER";
+            building = new GiantBarracks();
+          } else building = new Tower();
         }
 
         if (totalIncome < minIncome
             && site instanceof Mine
             && ((Mine) site).income < ((Mine) site).maxMineSize
             && site.gold > 100) {
-          type += "MINE";
+          building = new Mine();
         }
         if (site instanceof Tower && ((Tower) site).life < 500) {
-          type += "TOWER";
+          building = new Tower();
         }
 
-        if (!type.isEmpty()) {
-          System.out.println("BUILD " + siteId + " " + type);
-          nextStrategy = false;
+        if (building != null) {
+          buildAction = new Build();
+          buildAction.building = building;
+          buildAction.id = siteId;
         }
       }
     }
-    return nextStrategy;
+    return buildAction;
+  }
+
+  private Move moveToNextSite(Env e) {
+    Move move = null;
+    Vector2D queenPos = e.friend.getQeen().position;
+    Optional<Site> next =
+        e.sites.stream()
+            .filter(s -> s instanceof EmptySite)
+            .min(Comparator.comparing(site -> site.location.distance(queenPos)));
+
+    if (next.isPresent()) {
+      // move to next empty place
+      move = new Move();
+      move.to = next.get().location;
+    } else {
+      // move to smallest tower
+      next =
+          e.sites.stream()
+              .filter(s -> s instanceof Tower)
+              .filter(s -> ((Structure) s).isFriend)
+              .min(Comparator.comparing(s -> ((Tower) s).life));
+      if (next.isPresent()) {
+        move = new Move();
+        move.to = next.get().location;
+      }
+    }
+
+    return move;
+  }
+
+  private TrainAction trainAction(Env e) {
+    TrainAction trainAction = new TrainAction();
+    List<Integer> trainSites = new ArrayList<>();
+    long nbKnights = e.friend.units.stream().filter(unit -> unit instanceof Knight).count();
+    long nbArcher = e.friend.units.stream().filter(unit -> unit instanceof Archer).count();
+    long nbGiants = e.friend.units.stream().filter(unit -> unit instanceof Giant).count();
+
+    if (nbKnights == 0 || nbGiants != 0) {
+      // Train knights
+      Optional<Site> knightBarrack =
+          e.sites.stream()
+              .filter(s -> s instanceof KnightBarracks)
+              .filter(s -> ((Structure) s).isFriend)
+              .filter(s -> ((Barracks) s).available())
+              .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
+              .min(
+                  Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().position)));
+      knightBarrack.ifPresent(
+          site -> {
+            trainAction.trainIds.add(site.id);
+            e.friend.gold -= ((Barracks) site).trainCost;
+          });
+    } else {
+      // Train giants
+      Optional<Site> giantBarracks =
+          e.sites.stream()
+              .filter(s -> s instanceof GiantBarracks)
+              .filter(s -> ((Structure) s).isFriend)
+              .filter(s -> ((Barracks) s).available())
+              .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
+              .min(
+                  Comparator.comparing(
+                      site -> site.location.distance(e.friend.getQeen().position)));
+      giantBarracks.ifPresent(
+          site -> {
+            trainAction.trainIds.add(site.id);
+            e.friend.gold -= ((Barracks) site).trainCost;
+          });
+    }
+
+    return trainAction;
+  }
+
+  private Wait nothing() {
+    return new Wait();
   }
 }
 
 class Evaluator {
 
-  double queenDanger = 1;
-  double knightAttack = 1;
-  double goldIncome = 1;
-  double buildings = 1;
-  double army = 1;
+  double queenDanger; // evaluate life lost by your queen
+  double armyDanger; // evaluate total life lost by your units
+  double attackQueen; // evaluate life lost by the enemy queen
+  double attackArmy; // evaluate total life lost by enemy units
+  double quickAction; // distance of move without doing anything
+  double goldDiff; // gold diff at the end of all actions
+  double goldIncomeDiff; // gold income diff at the end of all actions
+  double buildings; // mandatory building are here ?
+  double buildingsPosition; // does building are well situated regarding environment ?
 
-  double evaluate(Env env) {
-    return queenDanger * queenDanger(env);
+  public Evaluator() {
+    queenDanger = 0;
+    armyDanger = 0;
+    attackQueen = 0;
+    attackArmy = 0;
   }
 
-  double queenDanger(Env env) {
+  double evaluate(Env env, List<Action> actions) {
+    towerImpact(env, actions);
+    return queenDanger;
+  }
+
+  void towerImpact(Env env, List<Action> actions) {
     // compute the losing point of life of the queen if not moving
     int damage = 0;
 
@@ -305,22 +312,104 @@ class Evaluator {
         }
       }
     }
-
-    return damage;
   }
 }
 
-class Env {
+class Simulator {
+
+  Env simulate(Env env, Action friendQueen, Action enemyQueen) {
+    Env next = env.clone();
+    next.friend.getQeen().touchedSite = 666;
+    return next;
+  }
+
+  private void processActions(Env next, Action friendQueen, Action enemyQueen) {}
+}
+
+class Action {
+  QueenAction queen;
+  TrainAction train;
+
+  Action() {}
+
+  void print() {
+    queen.print();
+    train.print();
+  }
+}
+
+class TrainAction {
+  List<Integer> trainIds;
+
+  TrainAction() {
+    trainIds = new ArrayList<>();
+  }
+
+  void print() {
+    StringBuilder sb = new StringBuilder("TRAIN");
+    for (Integer trainId : trainIds) sb.append(" ").append(trainId);
+    System.out.println(sb.toString());
+  }
+}
+
+abstract class QueenAction {
+  abstract void print();
+}
+
+class Wait extends QueenAction {
+
+  @Override
+  void print() {
+    System.out.println("WAIT");
+  }
+}
+
+class Move extends QueenAction {
+  Vector2D to;
+
+  @Override
+  void print() {
+    System.out.println("MOVE " + to.getIntX() + " " + to.getIntY());
+  }
+}
+
+class Build extends QueenAction {
+  int id;
+  Structure building;
+
+  @Override
+  void print() {
+    System.out.println("BUILD " + id + " " + building.name);
+  }
+}
+
+class Env implements Cloneable {
   Team friend;
   Team enemy;
-  Set<Site> sites;
+  List<Site> sites;
   private Map map;
 
   Env() {
     map = new Map();
     friend = new Team();
     enemy = new Team();
-    sites = new HashSet<>();
+    sites = new ArrayList<>();
+  }
+
+  @Override
+  protected Env clone() {
+    Env env = null;
+    try {
+      env = (Env) super.clone();
+      env.friend = friend.clone();
+      env.enemy = enemy.clone();
+      env.sites = new ArrayList<>();
+      for (Site site : sites) env.sites.add(site.clone());
+      env.map = map.clone();
+    } catch (CloneNotSupportedException e) {
+      e.printStackTrace();
+    }
+    return env;
   }
 
   Optional<Site> getSite(int id) {
@@ -340,23 +429,56 @@ class Env {
         + sites
         + '}';
   }
+
+  void printDiff(Env other) {
+    friend.printDiff(other.friend);
+    enemy.printDiff(other.enemy);
+    for (int i = 0; i < Math.max(sites.size(), other.sites.size()); i++) {
+      Site left = i < sites.size() ? sites.get(i) : null;
+      Site right = i < other.sites.size() ? other.sites.get(i) : null;
+      if (left == null || !left.equals(right)) {
+        System.err.println("Site diff from : " + left + " to : " + right);
+      }
+    }
+  }
 }
 
-class Map {
+class Map implements Cloneable {
   private Vector2D dimension;
 
   Map() {
     dimension = new Vector2D(1920, 1000);
   }
+
+  @Override
+  protected Map clone() throws CloneNotSupportedException {
+    Map map = (Map) super.clone();
+    map.dimension = dimension.clone();
+    return map;
+  }
+
+  @Override
+  public String toString() {
+    return "Map{" + "dimension=" + dimension + '}';
+  }
 }
 
-class Team {
+class Team implements Cloneable {
   int gold;
   List<Unit> units;
 
   Team() {
     this.gold = 100;
     this.units = new ArrayList<>();
+  }
+
+  @Override
+  protected Team clone() throws CloneNotSupportedException {
+    Team team = (Team) super.clone();
+    team.gold = gold;
+    team.units = new ArrayList<>();
+    for (Unit unit : units) team.units.add(unit.clone());
+    return team;
   }
 
   Queen getQeen() {
@@ -370,13 +492,39 @@ class Team {
         .collect(Collectors.toList());
   }
 
+  void printDiff(Team other) {
+    if (!this.equals(other)) {
+      if (gold != other.gold) System.err.println("Team gold diff from " + gold + " to : " + gold);
+      for (int i = 0; i < Math.max(units.size(), other.units.size()); i++) {
+        Unit left = i < units.size() ? units.get(i) : null;
+        Unit right = i < other.units.size() ? other.units.get(i) : null;
+        if (left == null || !left.equals(right)) {
+          System.err.println("Team unit diff from : " + left + " to : " + right);
+        }
+      }
+    }
+  }
+
   @Override
   public String toString() {
     return "Team{" + "gold=" + gold + ", units=" + units + '}';
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Team team = (Team) o;
+    return gold == team.gold && Objects.equals(units, team.units);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(gold, units);
+  }
 }
 
-abstract class Unit {
+abstract class Unit implements Cloneable {
   Vector2D position;
   int health;
   int speed;
@@ -402,6 +550,32 @@ abstract class Unit {
     unit.health = health;
     return unit;
   }
+
+  @Override
+  protected Unit clone() throws CloneNotSupportedException {
+    Unit unit = (Unit) super.clone();
+    unit.position = position.clone();
+    unit.health = health;
+    unit.speed = speed;
+    unit.radius = radius;
+    return unit;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Unit unit = (Unit) o;
+    return health == unit.health
+        && speed == unit.speed
+        && radius == unit.radius
+        && Objects.equals(position, unit.position);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(position, health, speed, radius);
+  }
 }
 
 class Queen extends Unit {
@@ -412,6 +586,27 @@ class Queen extends Unit {
     this.radius = 30;
     this.health = 200;
     this.speed = 60;
+  }
+
+  @Override
+  protected Queen clone() throws CloneNotSupportedException {
+    Queen queen = (Queen) super.clone();
+    queen.touchedSite = touchedSite;
+    return queen;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Queen queen = (Queen) o;
+    return touchedSite == queen.touchedSite;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), touchedSite);
   }
 
   @Override
@@ -434,17 +629,46 @@ class Queen extends Unit {
 abstract class Creep extends Unit {
   int range;
 
+  Creep() {}
+
+  @Override
+  protected Creep clone() throws CloneNotSupportedException {
+    Creep creep = (Creep) super.clone();
+    creep.range = range;
+    return creep;
+  }
+
   abstract int damage(Unit unit);
 
   abstract int damage(Site site);
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Creep creep = (Creep) o;
+    return range == creep.range;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), range);
+  }
 }
 
 class Knight extends Creep {
+
   Knight() {
     this.speed = 100;
     this.health = 25;
     this.radius = 20;
     this.range = 0;
+  }
+
+  @Override
+  protected Knight clone() throws CloneNotSupportedException {
+    return (Knight) super.clone();
   }
 
   @Override
@@ -484,6 +708,11 @@ class Archer extends Creep {
   }
 
   @Override
+  protected Archer clone() throws CloneNotSupportedException {
+    return (Archer) super.clone();
+  }
+
+  @Override
   int damage(Unit unit) {
     if (unit instanceof Queen) return 0;
     else if (unit instanceof Giant) return 10;
@@ -506,6 +735,11 @@ class Giant extends Creep {
   }
 
   @Override
+  protected Giant clone() throws CloneNotSupportedException {
+    return (Giant) super.clone();
+  }
+
+  @Override
   int damage(Unit unit) {
     return 0;
   }
@@ -517,12 +751,14 @@ class Giant extends Creep {
   }
 }
 
-abstract class Site {
+abstract class Site implements Cloneable {
   int id;
   Vector2D location;
   int radius;
   int gold;
   int maxMineSize;
+
+  public Site() {}
 
   static Site build(
       int siteId,
@@ -571,6 +807,17 @@ abstract class Site {
     return site;
   }
 
+  @Override
+  protected Site clone() throws CloneNotSupportedException {
+    Site site = (Site) super.clone();
+    site.id = id;
+    site.location = location.clone();
+    site.radius = radius;
+    site.gold = gold;
+    site.maxMineSize = maxMineSize;
+    return site;
+  }
+
   double area() {
     return Math.PI * radius * radius;
   }
@@ -580,16 +827,28 @@ abstract class Site {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Site site = (Site) o;
-    return id == site.id;
+    return id == site.id
+        && radius == site.radius
+        && gold == site.gold
+        && maxMineSize == site.maxMineSize
+        && Objects.equals(location, site.location);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id);
+    return Objects.hash(id, location, radius, gold, maxMineSize);
   }
 }
 
 class EmptySite extends Site {
+
+  public EmptySite() {}
+
+  @Override
+  protected EmptySite clone() throws CloneNotSupportedException {
+    return (EmptySite) super.clone();
+  }
+
   @Override
   public String toString() {
     return "EmptySite{" + "id=" + id + ", location=" + location + ", radius=" + radius + '}';
@@ -598,15 +857,100 @@ class EmptySite extends Site {
 
 abstract class Structure extends Site {
   boolean isFriend;
+  String name;
+
+  public Structure() {}
+
+  @Override
+  protected Structure clone() throws CloneNotSupportedException {
+    Structure structure = (Structure) super.clone();
+    structure.isFriend = isFriend;
+    structure.name = name;
+    return structure;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Structure structure = (Structure) o;
+    return isFriend == structure.isFriend && Objects.equals(name, structure.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), isFriend, name);
+  }
 }
 
 class Mine extends Structure {
   int income;
+
+  public Mine() {
+    super();
+    name = "MINE";
+  }
+
+  @Override
+  protected Mine clone() throws CloneNotSupportedException {
+    Mine mine = (Mine) super.clone();
+    mine.income = income;
+    return mine;
+  }
+
+  @Override
+  public String toString() {
+    return "Mine{"
+        + "id="
+        + id
+        + ", location="
+        + location
+        + ", radius="
+        + radius
+        + ", gold="
+        + gold
+        + ", maxMineSize"
+        + "="
+        + maxMineSize
+        + ", isFriend="
+        + isFriend
+        + ", income="
+        + income
+        + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Mine mine = (Mine) o;
+    return income == mine.income;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), income);
+  }
 }
 
 class Tower extends Structure {
   int life;
   int range;
+
+  public Tower() {
+    super();
+    name = "TOWER";
+  }
+
+  @Override
+  protected Tower clone() throws CloneNotSupportedException {
+    Tower tower = (Tower) super.clone();
+    tower.life = life;
+    tower.range = range;
+    return tower;
+  }
 
   @Override
   public String toString() {
@@ -630,6 +974,20 @@ class Tower extends Structure {
         + range
         + '}';
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Tower tower = (Tower) o;
+    return life == tower.life && range == tower.range;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), life, range);
+  }
 }
 
 abstract class Barracks extends Structure {
@@ -639,8 +997,37 @@ abstract class Barracks extends Structure {
   int nbUnitTrained;
   int trainingTime;
 
+  public Barracks() {}
+
+  @Override
+  protected Barracks clone() throws CloneNotSupportedException {
+    Barracks barracks = (Barracks) super.clone();
+    barracks.working = working;
+    barracks.trainCost = trainCost;
+    barracks.nbUnitTrained = nbUnitTrained;
+    barracks.trainingTime = trainingTime;
+    return barracks;
+  }
+
   boolean available() {
     return working <= 0;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Barracks barracks = (Barracks) o;
+    return working == barracks.working
+        && trainCost == barracks.trainCost
+        && nbUnitTrained == barracks.nbUnitTrained
+        && trainingTime == barracks.trainingTime;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), working, trainCost, nbUnitTrained, trainingTime);
   }
 }
 
@@ -651,6 +1038,12 @@ class KnightBarracks extends Barracks {
     this.trainCost = 80;
     this.nbUnitTrained = 4;
     this.trainingTime = 5;
+    this.name = "BARRACKS-KNIGHT";
+  }
+
+  @Override
+  protected KnightBarracks clone() throws CloneNotSupportedException {
+    return (KnightBarracks) super.clone();
   }
 }
 
@@ -661,6 +1054,12 @@ class ArcherBarracks extends Barracks {
     this.trainCost = 100;
     this.nbUnitTrained = 2;
     this.trainingTime = 8;
+    this.name = "BARRACKS-ARCHER";
+  }
+
+  @Override
+  protected ArcherBarracks clone() throws CloneNotSupportedException {
+    return (ArcherBarracks) super.clone();
   }
 
   @Override
@@ -691,6 +1090,12 @@ class GiantBarracks extends Barracks {
     this.trainCost = 140;
     this.nbUnitTrained = 1;
     this.trainingTime = 10;
+    this.name = "BARRACKS-GIANT";
+  }
+
+  @Override
+  protected GiantBarracks clone() throws CloneNotSupportedException {
+    return (GiantBarracks) super.clone();
   }
 }
 
@@ -707,7 +1112,8 @@ class Vector2D {
   }
 
   public Vector2D(Vector2D v) {
-    set(v);
+    this.x = v.x;
+    this.y = v.y;
   }
 
   private static Vector2D toCartesian(double magnitude, double angle) {
