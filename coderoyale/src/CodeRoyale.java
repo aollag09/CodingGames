@@ -342,15 +342,18 @@ class Evaluator {
 
 class Simulator {
 
+  private static final double OBSTACLE_GAP = 90;
+
   Env simulate(Env env, Action friendAction, Action enemyAction) {
     Env next = env.clone();
-    processTrainAction(next, friendAction.train, true);
-    processQueenAction(next, friendAction.queen, false);
-    processEndOfTurnUpdates(next);
+    simulateTrainingAction(next, friendAction.train, true);
+    simulateQueenAction(next, friendAction.queen, false);
+    simulateCollisions(next);
+    simulateEndOfTurnUpdates(next);
     return next;
   }
 
-  private void processTrainAction(Env env, TrainAction trainAction, boolean friend) {
+  private void simulateTrainingAction(Env env, TrainAction trainAction, boolean friend) {
     for (int trainSite : trainAction.trainIds) {
       env.getSite(trainSite)
           .ifPresent(
@@ -365,7 +368,7 @@ class Simulator {
     }
   }
 
-  private void processQueenAction(Env env, QueenAction queenAction, boolean friend) {
+  private void simulateQueenAction(Env env, QueenAction queenAction, boolean friend) {
     Queen queen = friend ? env.friend.getQeen() : env.enemy.getQeen();
     if (queenAction instanceof Move) {
       queen.location = ((Move) queenAction).to;
@@ -380,7 +383,53 @@ class Simulator {
     }
   }
 
-  private void processEndOfTurnUpdates(Env env) {
+  private void simulateCollisions(Env env) {
+    List<FieldObject> objects = env.all();
+    for (FieldObject object : objects) {
+      double radius = object.radius;
+      double bordure = object.mass == 0 ? (OBSTACLE_GAP + radius) : radius;
+
+      object.location.x = Math.max(bordure, object.location.x);
+      object.location.x = Math.min(env.map.dimension.x - bordure, object.location.x);
+      object.location.y = Math.max(bordure, object.location.y);
+      object.location.y = Math.min(env.map.dimension.y - bordure, object.location.y);
+
+      for (FieldObject collision : objects) {
+        if (!collision.equals(object)) {
+          double overlap =
+              object.radius + collision.radius - object.location.distance(collision.location);
+          if (overlap > 1e-6) {
+
+            // compute mass ratio
+            double massRatioObj = 0, massRatioCol = 0;
+            double gap = 0;
+            if (object.mass == 0 && collision.mass == 0) {
+              massRatioObj = 0.5;
+              massRatioCol = 0.5;
+              gap = 20;
+            } else if (object.mass == 0) {
+              massRatioObj = 0;
+              massRatioCol = 1;
+            } else if (collision.mass == 0) {
+              massRatioObj = 1;
+              massRatioCol = 0;
+            } else {
+              double total = object.mass + collision.mass;
+              massRatioObj = object.mass / total;
+              massRatioCol = collision.mass / total;
+            }
+
+            // compute new position
+            Vector2D diff = Vector2D.subtract(collision.location, object.location);
+            object.location.subtract(diff.resize(massRatioObj * overlap + gap));
+            collision.location.add(diff.resize(massRatioCol * overlap + gap));
+          }
+        }
+      }
+    }
+  }
+
+  private void simulateEndOfTurnUpdates(Env env) {
     // working time reduce of 1.
     env.sites.stream()
         .filter(site -> site instanceof Barracks)
@@ -466,7 +515,7 @@ class Env implements Cloneable {
   Team friend;
   Team enemy;
   TreeSet<Site> sites;
-  private Map map;
+  Map map;
 
   Env() {
     map = new Map();
@@ -489,6 +538,14 @@ class Env implements Cloneable {
       e.printStackTrace();
     }
     return env;
+  }
+
+  List<FieldObject> all() {
+    List<FieldObject> all = new ArrayList<>();
+    all.addAll(friend.units);
+    all.addAll(enemy.units);
+    all.addAll(sites);
+    return all;
   }
 
   Optional<Site> getSite(int id) {
@@ -525,7 +582,7 @@ class Env implements Cloneable {
 }
 
 class Map implements Cloneable {
-  private Vector2D dimension;
+  Vector2D dimension;
 
   Map() {
     dimension = new Vector2D(1920, 1000);
@@ -575,14 +632,22 @@ class Team implements Cloneable {
 
   void printDiff(Team other) {
     if (!this.equals(other)) {
-      if (gold != other.gold) System.err.println("Team gold diff from " + gold + " to : " + gold);
-      for (int i = 0; i < Math.max(units.size(), other.units.size()); i++) {
+      if (gold - other.gold > 1)
+        System.err.println("Team gold diff from " + gold + " to : " + gold);
+
+      Unit left = this.getQeen();
+      Unit right = other.getQeen();
+      if (left == null || !left.equals(right)) {
+        System.err.println("Team Queen diff from : " + left + " to : " + right);
+      }
+
+      /*for (int i = 0; i < Math.max(units.size(), other.units.size()); i++) {
         Unit left = i < units.size() ? units.get(i) : null;
         Unit right = i < other.units.size() ? other.units.get(i) : null;
         if (left == null || !left.equals(right)) {
           System.err.println("Team unit diff from : " + left + " to : " + right);
         }
-      }
+      }*/
     }
   }
 
