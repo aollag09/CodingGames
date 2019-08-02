@@ -1,9 +1,11 @@
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 interface Solver {
@@ -30,6 +32,8 @@ class Player {
       site.radius = in.nextInt();
       env.sites.add(site);
     }
+
+    Env simulationEnv = null;
 
     // game loop
     while (true) {
@@ -85,13 +89,19 @@ class Player {
       env.friend.getQeen().touchedSite = touchedSite;
 
       System.err.println(env.toString());
-
-      Simulator simulator = new Simulator();
-      Env next = simulator.simulate(env, null, null);
-      env.printDiff(next);
+      if (simulationEnv != null) {
+        // compare previous simulation with result ...
+        simulationEnv.printDiff(env);
+      }
 
       Solver solver = new StupidSolver();
-      solver.solve(env).print();
+      Action action = solver.solve(env);
+
+      // update simulation
+      Simulator simulator = new Simulator();
+      simulationEnv = simulator.simulate(env, action, null);
+
+      action.print();
       // First line: A valid queen action
       // Second line: A set of training instructions
     }
@@ -167,14 +177,27 @@ class StupidSolver implements Solver {
             && site instanceof Mine
             && ((Mine) site).income < ((Mine) site).maxMineSize
             && site.gold > 100) {
-          building = new Mine();
+          building = ((Mine) site).clone();
+          ((Mine) building).build();
         }
         if (site instanceof Tower && ((Tower) site).life < 500) {
-          building = new Tower();
+          Tower tower = ((Tower) site).clone();
+          tower.build();
         }
 
         if (building != null) {
           buildAction = new Build();
+
+          // copy existing information on building
+          Optional<Site> existing = e.getSite(siteId);
+          if (existing.isPresent()) {
+            building.id = existing.get().id;
+            building.gold = existing.get().gold;
+            building.maxMineSize = existing.get().maxMineSize;
+            building.radius = existing.get().radius;
+            building.location = existing.get().location.clone();
+            building.isFriend = true;
+          }
           buildAction.building = building;
           buildAction.id = siteId;
         }
@@ -185,7 +208,8 @@ class StupidSolver implements Solver {
 
   private Move moveToNextSite(Env e) {
     Move move = null;
-    Vector2D queenPos = e.friend.getQeen().position;
+    Queen queen = e.friend.getQeen();
+    Vector2D queenPos = queen.location;
     Optional<Site> next =
         e.sites.stream()
             .filter(s -> s instanceof EmptySite)
@@ -194,7 +218,7 @@ class StupidSolver implements Solver {
     if (next.isPresent()) {
       // move to next empty place
       move = new Move();
-      move.to = next.get().location;
+      move.to = queen.location.towards(next.get().location, queen.speed);
     } else {
       // move to smallest tower
       next =
@@ -204,7 +228,7 @@ class StupidSolver implements Solver {
               .min(Comparator.comparing(s -> ((Tower) s).life));
       if (next.isPresent()) {
         move = new Move();
-        move.to = next.get().location;
+        move.to = queen.location.towards(next.get().location, queen.speed);
       }
     }
 
@@ -227,7 +251,7 @@ class StupidSolver implements Solver {
               .filter(s -> ((Barracks) s).available())
               .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
               .min(
-                  Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().position)));
+                  Comparator.comparing(site -> site.location.distance(e.enemy.getQeen().location)));
       knightBarrack.ifPresent(
           site -> {
             trainAction.trainIds.add(site.id);
@@ -243,7 +267,7 @@ class StupidSolver implements Solver {
               .filter(s -> ((Barracks) s).trainCost <= e.friend.gold)
               .min(
                   Comparator.comparing(
-                      site -> site.location.distance(e.friend.getQeen().position)));
+                      site -> site.location.distance(e.friend.getQeen().location)));
       giantBarracks.ifPresent(
           site -> {
             trainAction.trainIds.add(site.id);
@@ -270,6 +294,7 @@ class Evaluator {
   double goldIncomeDiff; // gold income diff at the end of all actions
   double buildings; // mandatory building are here ?
   double buildingsPosition; // does building are well situated regarding environment ?
+  double discovery; // available gold has to be dicovered. Often more gold & income rate at center
 
   public Evaluator() {
     queenDanger = 0;
@@ -283,7 +308,7 @@ class Evaluator {
     return queenDanger;
   }
 
-  void towerImpact(Env env, List<Action> actions) {
+  private void towerImpact(Env env, List<Action> actions) {
     // compute the losing point of life of the queen if not moving
     int damage = 0;
 
@@ -293,22 +318,22 @@ class Evaluator {
             .filter(site -> site instanceof Tower)
             .map(site -> (Tower) site)
             .filter(tower -> !tower.isFriend)
-            .filter(tower -> tower.location.distance(env.friend.getQeen().position) <= tower.range)
+            .filter(tower -> tower.location.distance(env.friend.getQeen().location) <= tower.range)
             .collect(Collectors.toList());
     for (Tower tower : attackTowers) {
       int hp = tower.life;
-      int range = (int) Math.sqrt((tower.life * 1000 + tower.area()) / Math.PI);
+      int range = Tower.computeRange(tower, hp);
 
       // has a defend creep ?
       boolean defendCreep =
           env.friend.creeps().stream()
-              .anyMatch(creep -> creep.position.distance(tower.location) < tower.range);
+              .anyMatch(creep -> creep.location.distance(tower.location) < tower.range);
 
       if (!defendCreep) {
-        while (range > tower.location.distance(env.friend.getQeen().position)) {
+        while (range > tower.location.distance(env.friend.getQeen().location)) {
           damage += 3;
           hp -= 4;
-          range = (int) Math.sqrt((hp * 1000 + tower.area()) / Math.PI);
+          range = Tower.computeRange(tower, hp);
         }
       }
     }
@@ -317,13 +342,67 @@ class Evaluator {
 
 class Simulator {
 
-  Env simulate(Env env, Action friendQueen, Action enemyQueen) {
+  Env simulate(Env env, Action friendAction, Action enemyAction) {
     Env next = env.clone();
-    next.friend.getQeen().touchedSite = 666;
+    processTrainAction(next, friendAction.train, true);
+    processQueenAction(next, friendAction.queen, false);
+    processEndOfTurnUpdates(next);
     return next;
   }
 
-  private void processActions(Env next, Action friendQueen, Action enemyQueen) {}
+  private void processTrainAction(Env env, TrainAction trainAction, boolean friend) {
+    for (int trainSite : trainAction.trainIds) {
+      env.getSite(trainSite)
+          .ifPresent(
+              site -> {
+                if (site instanceof Barracks) {
+                  Barracks barracks = (Barracks) site;
+                  if (friend) env.friend.gold -= barracks.trainCost;
+                  else env.enemy.gold -= barracks.trainCost;
+                  barracks.working = barracks.trainingTime;
+                }
+              });
+    }
+  }
+
+  private void processQueenAction(Env env, QueenAction queenAction, boolean friend) {
+    Queen queen = friend ? env.friend.getQeen() : env.enemy.getQeen();
+    if (queenAction instanceof Move) {
+      queen.location = ((Move) queenAction).to;
+    } else if (queenAction instanceof Build) {
+      Build build = (Build) queenAction;
+      // remove existing building
+      Optional<Site> existing = env.getSite(build.id);
+      existing.ifPresent(site -> env.sites.remove(site));
+      env.sites.add(build.building);
+    } else if (queenAction instanceof Wait) {
+      // nothing to do ...
+    }
+  }
+
+  private void processEndOfTurnUpdates(Env env) {
+    // working time reduce of 1.
+    env.sites.stream()
+        .filter(site -> site instanceof Barracks)
+        .map(site -> (Barracks) site)
+        .filter(barracks -> barracks.working > 0)
+        .forEach(barracks -> barracks.working--);
+
+    // available gold is reduced.
+    env.sites.stream()
+        .filter(site -> site instanceof Mine)
+        .map(site -> (Mine) site)
+        .forEach(Mine::collect);
+
+    // tower melting
+    env.sites.stream()
+        .filter(site -> site instanceof Tower)
+        .map(site -> (Tower) site)
+        .forEach(Tower::melt);
+
+    // Remove dead creeps
+
+  }
 }
 
 class Action {
@@ -386,14 +465,14 @@ class Build extends QueenAction {
 class Env implements Cloneable {
   Team friend;
   Team enemy;
-  List<Site> sites;
+  TreeSet<Site> sites;
   private Map map;
 
   Env() {
     map = new Map();
     friend = new Team();
     enemy = new Team();
-    sites = new ArrayList<>();
+    sites = new TreeSet<>();
   }
 
   @Override
@@ -403,7 +482,7 @@ class Env implements Cloneable {
       env = (Env) super.clone();
       env.friend = friend.clone();
       env.enemy = enemy.clone();
-      env.sites = new ArrayList<>();
+      env.sites = new TreeSet<>();
       for (Site site : sites) env.sites.add(site.clone());
       env.map = map.clone();
     } catch (CloneNotSupportedException e) {
@@ -432,10 +511,12 @@ class Env implements Cloneable {
 
   void printDiff(Env other) {
     friend.printDiff(other.friend);
-    enemy.printDiff(other.enemy);
-    for (int i = 0; i < Math.max(sites.size(), other.sites.size()); i++) {
-      Site left = i < sites.size() ? sites.get(i) : null;
-      Site right = i < other.sites.size() ? other.sites.get(i) : null;
+    // enemy.printDiff(other.enemy);
+    Iterator<Site> lefts = sites.iterator();
+    Iterator<Site> rights = other.sites.iterator();
+    while (lefts.hasNext() || rights.hasNext()) {
+      Site left = lefts.hasNext() ? lefts.next() : null;
+      Site right = rights.hasNext() ? rights.next() : null;
       if (left == null || !left.equals(right)) {
         System.err.println("Site diff from : " + left + " to : " + right);
       }
@@ -524,11 +605,15 @@ class Team implements Cloneable {
   }
 }
 
-abstract class Unit implements Cloneable {
-  Vector2D position;
+abstract class FieldObject {
+  Vector2D location;
+  int radius;
+  int mass;
+}
+
+abstract class Unit extends FieldObject implements Cloneable {
   int health;
   int speed;
-  int radius;
 
   Unit() {}
 
@@ -546,7 +631,7 @@ abstract class Unit implements Cloneable {
       throw new IllegalArgumentException(" unit type invalid " + unitType);
     }
 
-    unit.position = new Vector2D(x, y);
+    unit.location = new Vector2D(x, y);
     unit.health = health;
     return unit;
   }
@@ -554,7 +639,7 @@ abstract class Unit implements Cloneable {
   @Override
   protected Unit clone() throws CloneNotSupportedException {
     Unit unit = (Unit) super.clone();
-    unit.position = position.clone();
+    unit.location = location.clone();
     unit.health = health;
     unit.speed = speed;
     unit.radius = radius;
@@ -569,12 +654,12 @@ abstract class Unit implements Cloneable {
     return health == unit.health
         && speed == unit.speed
         && radius == unit.radius
-        && Objects.equals(position, unit.position);
+        && Objects.equals(location, unit.location);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(position, health, speed, radius);
+    return Objects.hash(location, health, speed, radius);
   }
 }
 
@@ -586,6 +671,7 @@ class Queen extends Unit {
     this.radius = 30;
     this.health = 200;
     this.speed = 60;
+    this.mass = 100;
   }
 
   @Override
@@ -612,8 +698,8 @@ class Queen extends Unit {
   @Override
   public String toString() {
     return "Queen{"
-        + "position="
-        + position
+        + "location="
+        + location
         + ", health="
         + health
         + ", speed="
@@ -664,6 +750,7 @@ class Knight extends Creep {
     this.health = 25;
     this.radius = 20;
     this.range = 0;
+    this.mass = 4;
   }
 
   @Override
@@ -674,8 +761,8 @@ class Knight extends Creep {
   @Override
   public String toString() {
     return "Knight{"
-        + "position="
-        + position
+        + "location="
+        + location
         + ", health="
         + health
         + ", speed="
@@ -705,6 +792,7 @@ class Archer extends Creep {
     this.health = 45;
     this.radius = 25;
     this.range = 200;
+    this.mass = 9;
   }
 
   @Override
@@ -732,6 +820,7 @@ class Giant extends Creep {
     this.health = 200;
     this.radius = 40;
     this.range = 0;
+    this.mass = 20;
   }
 
   @Override
@@ -751,14 +840,14 @@ class Giant extends Creep {
   }
 }
 
-abstract class Site implements Cloneable {
+abstract class Site extends FieldObject implements Cloneable, Comparable {
   int id;
-  Vector2D location;
-  int radius;
   int gold;
   int maxMineSize;
 
-  public Site() {}
+  public Site() {
+    mass = Integer.MAX_VALUE;
+  }
 
   static Site build(
       int siteId,
@@ -823,14 +912,20 @@ abstract class Site implements Cloneable {
   }
 
   @Override
+  public int compareTo(Object o) {
+    if (o instanceof Site) return id - ((Site) o).id;
+    return 0;
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Site site = (Site) o;
     return id == site.id
         && radius == site.radius
-        && gold == site.gold
-        && maxMineSize == site.maxMineSize
+        // && gold == site.gold, can compare gold as sometimes it not yet discovered ...
+        // && maxMineSize == site.maxMineSize
         && Objects.equals(location, site.location);
   }
 
@@ -851,7 +946,19 @@ class EmptySite extends Site {
 
   @Override
   public String toString() {
-    return "EmptySite{" + "id=" + id + ", location=" + location + ", radius=" + radius + '}';
+    return "EmptySite{"
+        + "id="
+        + id
+        + ", location="
+        + location
+        + ", radius="
+        + radius
+        + ", gold="
+        + gold
+        + ", "
+        + "maxMineSize="
+        + maxMineSize
+        + '}';
   }
 }
 
@@ -890,13 +997,30 @@ class Mine extends Structure {
   public Mine() {
     super();
     name = "MINE";
+    income = 1;
   }
 
   @Override
-  protected Mine clone() throws CloneNotSupportedException {
-    Mine mine = (Mine) super.clone();
+  protected Mine clone() {
+    Mine mine = null;
+    try {
+      mine = (Mine) super.clone();
+    } catch (CloneNotSupportedException e) {
+      e.printStackTrace();
+    }
     mine.income = income;
     return mine;
+  }
+
+  void build() {
+    income++;
+  }
+
+  int collect() {
+    int collect = 0;
+    collect = Math.min(income, gold);
+    gold -= collect;
+    return collect;
   }
 
   @Override
@@ -936,17 +1060,51 @@ class Mine extends Structure {
 }
 
 class Tower extends Structure {
+
+  static final int TOWER_HP_INITIAL = 200;
+  static final int TOWER_HP_INCREMENT = 100;
+  static final int TOWER_HP_MAXIMUM = 800;
+  static final int TOWER_CREEP_DAMAGE_MIN = 3;
+  static final int TOWER_CREEP_DAMAGE_CLIMB_DISTANCE = 200;
+  static final int TOWER_QUEEN_DAMAGE_MIN = 1;
+  static final int TOWER_QUEEN_DAMAGE_CLIMB_DISTANCE = 200;
+  static final int TOWER_MELT_RATE = 4;
+  static final int TOWER_COVERAGE_PER_HP = 1000;
+
   int life;
   int range;
 
   public Tower() {
     super();
     name = "TOWER";
+    life = TOWER_HP_INITIAL;
+    range = computeRange(this, life);
+  }
+
+  public static int computeRange(Tower tower, int hp) {
+    return (int) Math.sqrt((tower.life * 1000 + tower.area()) / Math.PI);
+  }
+
+  void build() {
+    if (this.life <= 0) this.life += Tower.TOWER_HP_INITIAL;
+    else this.life += Tower.TOWER_HP_INCREMENT;
+    this.life = Math.min(this.life, Tower.TOWER_HP_MAXIMUM);
+    this.range = computeRange(this, life);
+  }
+
+  void melt() {
+    this.life -= Tower.TOWER_MELT_RATE;
+    this.range = computeRange(this, life);
   }
 
   @Override
-  protected Tower clone() throws CloneNotSupportedException {
-    Tower tower = (Tower) super.clone();
+  protected Tower clone() {
+    Tower tower = null;
+    try {
+      tower = (Tower) super.clone();
+    } catch (CloneNotSupportedException e) {
+      e.printStackTrace();
+    }
     tower.life = life;
     tower.range = range;
     return tower;
@@ -1028,6 +1186,36 @@ abstract class Barracks extends Structure {
   @Override
   public int hashCode() {
     return Objects.hash(super.hashCode(), working, trainCost, nbUnitTrained, trainingTime);
+  }
+
+  @Override
+  public String toString() {
+    return "Barracks{"
+        + "id="
+        + id
+        + ", location="
+        + location
+        + ", radius="
+        + radius
+        + ", gold="
+        + gold
+        + ", "
+        + "maxMineSize="
+        + maxMineSize
+        + ", isFriend="
+        + isFriend
+        + ", name='"
+        + name
+        + '\''
+        + ", working="
+        + working
+        + ", trainCost="
+        + trainCost
+        + ", nbUnitTrained="
+        + nbUnitTrained
+        + ", trainingTime="
+        + trainingTime
+        + '}';
   }
 }
 
@@ -1173,7 +1361,7 @@ class Vector2D {
     return new double[] {x, y};
   }
 
-  private double getLength() {
+  public double getLength() {
     return Math.sqrt(x * x + y * y);
   }
 
@@ -1314,6 +1502,17 @@ class Vector2D {
     double cos = Math.cos(angle);
     double sin = Math.sin(angle);
     return new Vector2D(x * cos - y * sin, x * sin + y * cos);
+  }
+
+  public Vector2D towards(Vector2D target, double max) {
+    if (this.distance(target) < max) return target;
+    else {
+      return Vector2D.add(this, Vector2D.subtract(target, this).resize(max));
+    }
+  }
+
+  public Vector2D resize(double newSize) {
+    return this.getNormalized().getMultiplied(newSize);
   }
 
   public void rotateTo(double angle) {
