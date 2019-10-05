@@ -140,7 +140,7 @@ class Entity {
 	final int id;
 	final EntityType type;
 	final Coord pos;
-    final EntityType item;
+        final EntityType item;
     
 	// Computed for my robots
 	Action action;
@@ -168,11 +168,17 @@ class Team {
 	}
 }
 
+class Round{
+  int roundNumber;
+  State state;
 
-class Board {
-	// Given at startup
-	final int width;
-	final int height;
+  Round(int rdNb, State s) {
+    roundNumber = rdNb;
+    state = s;
+  } 
+} 
+
+class State{
 
 	// Updated each turn
 	final Team myTeam = new Team();
@@ -184,49 +190,66 @@ class Board {
 	Collection<Coord> myRadarPos;
 	Collection<Coord> myTrapPos;
 
-	Board(Scanner in) {
-		width = in.nextInt();
-		height = in.nextInt();
-	}
-
-	void update(Scanner in) {
-		// Read new data
-		myTeam.readScore(in);
-		opponentTeam.readScore(in);
-		cells = new Cell[height][width];
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				cells[y][x] = new Cell(in);
-			}
-		}
-		int entityCount = in.nextInt();
-		myRadarCooldown = in.nextInt();
-		myTrapCooldown = in.nextInt();
-		entitiesById = new HashMap<>();
-		myRadarPos = new ArrayList<>();
-		myTrapPos = new ArrayList<>();
-		for (int i = 0; i < entityCount; i++) {
-			Entity entity = new Entity(in);
-			entitiesById.put(entity.id, entity);
-			if (entity.type == EntityType.ALLY_ROBOT) {
-				myTeam.robots.add(entity);
-			} else if (entity.type == EntityType.ENEMY_ROBOT) {
-				opponentTeam.robots.add(entity);
-			} else if (entity.type == EntityType.RADAR) {
-				myRadarPos.add(entity.pos);
-			} else if (entity.type == EntityType.TRAP) {
-				myTrapPos.add(entity.pos);
-			}
-		}
-	}
-
-	boolean cellExist(Coord pos) {
+        boolean cellExist(Coord pos) {
 		return (pos.x >= 0) && (pos.y >= 0) && (pos.x < width) && (pos.y < height);
 	}
 
 	Cell getCell(Coord pos) {
 		return cells[pos.y][pos.x];
 	}
+} 
+
+class Game {
+	// Given at startup
+	final int width;
+	final int height;
+        int round = 0;
+        final List<Round> history;
+
+	Game(Scanner in) {
+		width = in.nextInt();
+		height = in.nextInt();
+                history = new ArrayList<Round>();
+	}
+
+	void update(Scanner in) {
+                this.round ++;
+		// Read new data
+                State state = new State();
+		state.myTeam.readScore(in);
+		state.opponentTeam.readScore(in);
+		state.cells = new Cell[height][width];
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				state.cells[y][x] = new Cell(in);
+			}
+		}
+		int entityCount = in.nextInt();
+		state.myRadarCooldown = in.nextInt();
+		state.myTrapCooldown = in.nextInt();
+		state.entitiesById = new HashMap<>();
+		state.myRadarPos = new ArrayList<>();
+		state.myTrapPos = new ArrayList<>();
+		for (int i = 0; i < entityCount; i++) {
+			Entity entity = new Entity(in);
+			state.entitiesById.put(entity.id, entity);
+			if (entity.type == EntityType.ALLY_ROBOT) {
+				state.myTeam.robots.add(entity);
+			} else if (entity.type == EntityType.ENEMY_ROBOT) {
+				state.opponentTeam.robots.add(entity);
+			} else if (entity.type == EntityType.RADAR) {
+				state.myRadarPos.add(entity.pos);
+			} else if (entity.type == EntityType.TRAP) {
+				state.myTrapPos.add(entity.pos);
+			}
+		}
+                Round current = new Round(this.round, state);
+                history.add(current);
+	}
+
+	public State current() {
+          return this.history.get(this.history.size() - 1).state;
+        } 
 }
 
 
@@ -240,20 +263,20 @@ class Player {
 
 	void run() {
 		// Parse initial conditions
-		Board board = new Board(in);
+		Game game = new Game(in);
 
 		while (true) {
 			// Parse current state of the game
-			board.update(in);
+			game.update(in);
 
 			// Insert your strategy here
-			for (Entity robot : board.myTeam.robots) {
+			for (Entity robot : game.current().myTeam.robots) {
 				robot.action = Action.none();
 				robot.action.message = "Java Starter";
 			}
 
 			// Send your actions for this turn
-			for (Entity robot : board.myTeam.robots) {
+			for (Entity robot : game.current().myTeam.robots) {
 				System.out.println(robot.action);
 			}
 		}
