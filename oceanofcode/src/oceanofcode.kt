@@ -1,4 +1,5 @@
 import java.util.*
+import kotlin.collections.HashSet
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -10,11 +11,22 @@ fun main(args: Array<String>) {
     val width = input.nextInt()
     val height = input.nextInt()
     val myId = input.nextInt()
+
     if (input.hasNextLine()) {
         input.nextLine()
     }
-    for (i in 0 until height) {
+
+    // Create Map 
+    val map: Map = Map(width, height);
+    for (j in 0 until height) {
         val line = input.nextLine()
+        for (i in line.indices)
+            if (line.toCharArray()[i] != '.')
+                map.addIsland(Vector2D(i, j))
+    }
+
+    map.islands.forEach {
+        //System.err.println(it.toString());
     }
 
     // Write an action using println()
@@ -47,10 +59,38 @@ fun main(args: Array<String>) {
 
 }
 
-class Map(size: Vector2D) {
-    var size: Vector2D = Vector2D(15, 15);
-    var width = 15;
+class Map(width: Int, height: Int) {
+    val size: Vector2D = Vector2D(width, height);
+    var islands: MutableSet<Vector2D> = HashSet();
 
+    fun isIsland(pos: Vector2D): Boolean {
+        return islands.contains(pos);
+    }
+
+    fun isWater(pos: Vector2D): Boolean {
+        return !isIsland(pos);
+    }
+
+    fun addIsland(pos: Vector2D) {
+        System.err.println(pos.toString());
+        islands.add(pos);
+    }
+
+    fun getWaterSection(section: Int): Set<Vector2D> {
+        if (section < 1 || section > 9)
+            throw RuntimeException("Section should be between 1 and 9")
+        val water: MutableSet<Vector2D> = HashSet();
+        val x: Int = section % 3;
+        val y: Int = section / 3;
+        for (i in x - 1 until x + 5) {
+            for (j in y - 1 until y + 5) {
+                val pos: Vector2D = Vector2D(i, j);
+                if (isWater(pos))
+                    water.add(pos);
+            }
+        }
+        return water;
+    }
 
 }
 
@@ -58,13 +98,11 @@ class Submarine {
 
 }
 
-class Vector2D(x: Double, y: Double) {
+class Vector2D(var x: Double, var y: Double) {
 
-    var x: Double = 0.0;
-    var y: Double = 0.0;
-
-    constructor(vector2D: Vector2D) : this(vector2D.x, vector2D.y)
-    constructor(ix: Int, iy: Int) : this(ix + 0.0, iy + 0.0);
+    constructor(vector2D: Vector2D) : this(vector2D.x, vector2D.y);
+    constructor(ix: Int, iy: Int) : this(ix.toDouble(), iy.toDouble());
+    constructor() : this(0, 0);
 
     fun set(vector2D: Vector2D) {
         this.x = vector2D.x;
@@ -92,8 +130,8 @@ class Vector2D(x: Double, y: Double) {
     }
 
     fun distance(v: Vector2D): Double {
-        var vx = v.x - this.x;
-        var vy = v.y - this.y;
+        val vx = v.x - this.x;
+        val vy = v.y - this.y;
         return sqrt((vx * vx + vy * vy).toDouble());
     }
 
@@ -251,6 +289,29 @@ class Vector2D(x: Double, y: Double) {
 
     fun clone(): Vector2D {
         return Vector2D(x, y)
+    }
+
+
+    override fun toString(): String {
+        return "(x=$x, y=$y)"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Vector2D
+
+        if (x != other.x) return false
+        if (y != other.y) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = x.hashCode()
+        result = 31 * result + y.hashCode()
+        return result
     }
 
 }
