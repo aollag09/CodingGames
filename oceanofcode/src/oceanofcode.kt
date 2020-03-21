@@ -25,10 +25,6 @@ fun main(args: Array<String>) {
                 map.addIsland(Vector2D(i, j))
     }
 
-    map.islands.forEach {
-        //System.err.println(it.toString());
-    }
-
     // Write an action using println()
     // To debug: System.err.println("Debug messages...");
 
@@ -72,7 +68,6 @@ class Map(width: Int, height: Int) {
     }
 
     fun addIsland(pos: Vector2D) {
-        System.err.println(pos.toString());
         islands.add(pos);
     }
 
@@ -94,7 +89,16 @@ class Map(width: Int, height: Int) {
 
 }
 
-class Submarine {
+class Submarine() {
+    var position: Vector2D = Vector2D();
+    var life: Int = 6;
+    val torpedoCoolDown: Int = 0;
+    val sonarCoolDown: Int = 0;
+    val silenceCoolDown: Int = 0;
+    val mineCoolDown: Int = 0;
+    val sonarResult: Int = 0;
+
+
 
 }
 
