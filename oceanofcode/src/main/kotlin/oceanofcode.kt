@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
     val graph = env.moveGraph();
     val longestPath = LongestPath(graph);
     val path: MutableList<Vector2D> = longestPath.solve(env.submarine.position);
-    val direction = path[0].direction(path[1])
+    val direction = env.submarine.position.direction(path[0])
 
     println("MOVE $direction TORPEDO")
 
@@ -178,78 +178,64 @@ class LongestPath(private val graph: Graph<Vector2D>) {
   // Discovered node map
   private val discovered: MutableMap<Vector2D, Boolean> = hashMapOf();
 
-  // Topological sort of all Nodes
-  private val sort: ArrayDeque<Vector2D> = ArrayDeque();
-
   // Longest distance to reach the node
   private val longestDistance: MutableMap<Vector2D, Int> = hashMapOf();
+
+  // Keep parent pointer
+  private val parents: MutableMap<Vector2D, Vector2D> = hashMapOf();
 
 
   /** Return the longest path from input source in the graph */
   fun solve(source: Vector2D): MutableList<Vector2D> {
-    // Cleaning
-    discovered.clear();
-    sort.clear();
-    longestDistance.clear();
 
-    // Run dfs for topological sorting
-    dfs(source, 0);
-    println( "End dfs")
+    // clear
+    for (node in this.graph.adjacencyMap.keys) {
+      longestDistance[node] = 0;
+      discovered[node] = false;
+    }
 
-    // Compute the length of the longest path ending at v by looking at its incoming
-    // neighbors and adding one to the maximum length recorded for those neighbors.
-    for (node in sort) longestDistance[node] = 0;
-    for (from: Vector2D in sort)
-      if (graph.adjacencyMap.containsKey(from))
-        for (to: Vector2D in graph.adjacencyMap[from]!!)
-          longestDistance[to] = max(longestDistance[to]!!, longestDistance[from]!! + 1);
+    // Compute longest path
+    longestPath(source, source, 0);
 
-    // Starting from longest distance, step back to node with next highest distance
-    var max: Int = 0;
-    var end: Vector2D = Vector2D();
+    // Found target of the longest path
+    var target: Vector2D = Vector2D();
+    var max: Int = -1;
     for (node in longestDistance.keys) {
-      if (longestDistance[node]!! > max) {
-        max = longestDistance[node]!!;
-        end = node;
+      var distance: Int = longestDistance[node]!!;
+      if (distance > max) {
+        max = distance;
+        target = node;
       }
     }
 
-    // Compute the path
+    // Build path
     val path: MutableList<Vector2D> = mutableListOf();
-    findPath(source, end, path);
+    var node: Vector2D = target;
+
+    while (node != source) {
+      path.add(0, node);
+      node = parents[node]!!;
+    }
 
     return path;
+
   }
 
-  // Reconstruct path
-  private fun findPath(source: Vector2D, node: Vector2D, path: MutableList<Vector2D>) {
-    if (node == source)
-      path.add(node);
-    else {
-      //find back-edge of highest length
-      var maxDistance = -1
-      var next: Vector2D = source
-      for (i in graph.adjacencyMap.keys)
-        if (graph.adjacencyMap[i]!!.contains(node) && longestDistance[i]!! > maxDistance) {
-          maxDistance = longestDistance[i]!!
-          next = i
-        }
-      findPath(source, next, path)
-      path.add(node);
-    }
-  }
+  fun longestPath(father: Vector2D, node: Vector2D, sum: Int) {
+    if (!discovered.containsKey(node) || discovered[node] == false) {
+      discovered[node] = true;
 
-
-  private fun dfs(node: Vector2D, depth: Int) {
-    println("Discover $node");
-    discovered[node] = true;
-    if (!graph.adjacencyMap[node].isNullOrEmpty()) {
-      for (next in graph.adjacencyMap[node]!!) {
-        if (!discovered.contains(next) || discovered[next] == false) {
-          dfs(next, depth + 1);
-        }
+      if (node != father) {
+        if (!parents.containsKey(node))
+          parents[node] = father;
+        if (longestDistance[node]!! < sum)
+          longestDistance[node] = sum;
+        else
+          parents[node] = father;
       }
-      sort.push(node);
+
+      for (next in graph.adjacencyMap[node]!!)
+        longestPath(node, next, sum + 1);
     }
   }
 
