@@ -1,21 +1,24 @@
-package test.kotlin
-
 import main.kotlin.Vector2D
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 internal class Vector2DTest {
 
-  @org.junit.jupiter.api.Test
+  @Test
   fun length() {
-    val vector: Vector2D = Vector2D()
-    println("Test length")
+    val vector: Vector2D = Vector2D(1, 0)
+    assertEquals(1.0, vector.length())
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   fun distance() {
+    assertEquals(1.0, Vector2D(0, 0).distance(Vector2D(-1, 0)));
   }
 
-  @org.junit.jupiter.api.Test
+  @Test
   fun testEquals() {
+    assertEquals(Vector2D(2, 2), Vector2D(2, 2));
+    assertEquals(Vector2D(0, 0), Vector2D());
+    assertEquals(Vector2D(0, 0), Vector2D(0.0, 0.0));
   }
 }

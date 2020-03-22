@@ -2,10 +2,7 @@ package main.kotlin
 
 import java.util.*
 import kotlin.collections.HashSet
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
+import kotlin.math.*
 
 fun main(args: Array<String>) {
 
@@ -74,14 +71,10 @@ class Map(width: Int, height: Int) {
     return !isIsland(pos);
   }
 
-  fun addIsland(pos: Vector2D) {
-    islands.add(pos)
-  }
-
   fun parse(line: String, j: Int) {
     for (i in line.indices)
       if (line.toCharArray()[i] != '.')
-        this.addIsland(Vector2D(i, j))
+        this.islands.add(Vector2D(i, j))
   }
 
   fun getWaterSection(section: Int): Set<Vector2D> {
@@ -102,12 +95,13 @@ class Map(width: Int, height: Int) {
 
   fun neigh(pos: Vector2D): Set<Vector2D> {
     val neigh: MutableSet<Vector2D> = mutableSetOf();
-    for (dx in -1 until 1 step 2)
-      for (dy in -1 until 1 step 2)
-        if (pos.x + dx >= 0 && pos.x + dx < this.size.x)
-          if (pos.y + dy >= 0 && pos.y + dy < this.size.y)
-            if (isWater(Vector2D(pos.x + dx, pos.y + dy)))
-              neigh.add(Vector2D(pos.x + dx, pos.y + dy));
+    for (dx in -1..1 step 1)
+      for (dy in -1..1 step 1)
+        if (abs(dx) + abs(dy) == 1)
+          if (pos.x + dx >= 0 && pos.x + dx < this.size.x)
+            if (pos.y + dy >= 0 && pos.y + dy < this.size.y)
+              if (isWater(Vector2D(pos.x + dx, pos.y + dy)))
+                neigh.add(Vector2D(pos.x + dx, pos.y + dy));
     return neigh;
   }
 
@@ -154,7 +148,7 @@ class LoadTorpedo : Order() {
 
 class LongestPathAlgorithm(map: Map, start: Vector2D) {
 
-  private var graph: Graph<Vector2D> = Graph();
+  var graph: Graph<Vector2D> = Graph();
 
   init {
     // Populate graph
