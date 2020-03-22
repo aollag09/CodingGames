@@ -25,6 +25,10 @@ fun main(args: Array<String>) {
                 map.addIsland(Vector2D(i, j))
     }
 
+    // Initialise environement
+    var env: Env = Env(map);
+    env.submarine.id = myId;
+
     // Write an action using println()
     // To debug: System.err.println("Debug messages...");
 
@@ -32,15 +36,15 @@ fun main(args: Array<String>) {
 
     // game loop
     while (true) {
-        val x = input.nextInt()
-        val y = input.nextInt()
-        val myLife = input.nextInt()
-        val oppLife = input.nextInt()
-        val torpedoCooldown = input.nextInt()
-        val sonarCooldown = input.nextInt()
-        val silenceCooldown = input.nextInt()
-        val mineCooldown = input.nextInt()
-        val sonarResult = input.next()
+        // Update environment
+        env.submarine.position = Vector2D(input.nextInt(), input.nextInt());
+        env.submarine.life = input.nextInt();
+        env.opponent.life = input.nextInt();
+        env.submarine.torpedoCoolDown = input.nextInt()
+        env.submarine.sonarCoolDown = input.nextInt()
+        env.submarine.silenceCoolDown = input.nextInt()
+        env.submarine.mineCoolDown = input.nextInt()
+        env.submarine.sonarResult = input.next()
         if (input.hasNextLine()) {
             input.nextLine()
         }
@@ -53,6 +57,11 @@ fun main(args: Array<String>) {
     }
 
 
+}
+
+class Env(map: Map) {
+    var submarine: Submarine = Submarine();
+    var opponent: Opponent = Opponent();
 }
 
 class Map(width: Int, height: Int) {
@@ -68,7 +77,8 @@ class Map(width: Int, height: Int) {
     }
 
     fun addIsland(pos: Vector2D) {
-        islands.add(pos);
+        TODO("Not yet implemented")
+        islands.add(pos);TODO("Not yet implemented")
     }
 
     fun getWaterSection(section: Int): Set<Vector2D> {
@@ -90,16 +100,50 @@ class Map(width: Int, height: Int) {
 }
 
 class Submarine() {
+    var id: Int = 0;
     var position: Vector2D = Vector2D();
     var life: Int = 6;
-    val torpedoCoolDown: Int = 0;
-    val sonarCoolDown: Int = 0;
-    val silenceCoolDown: Int = 0;
-    val mineCoolDown: Int = 0;
-    val sonarResult: Int = 0;
+    var torpedoCoolDown: Int = 0;
+    var sonarCoolDown: Int = 0;
+    var silenceCoolDown: Int = 0;
+    var mineCoolDown: Int = 0;
+    var sonarResult: String = "NA"; // Can be Y, N or NA
 
+}
 
+class Opponent {
+    var life: Int = 6;
+}
 
+abstract class Order {
+    abstract fun toOrderString(): String;
+}
+
+class Surface : Order() {
+    override fun toOrderString(): String {
+        return "SURFACE"
+    }
+}
+
+class Torpedo : Order() {
+    var target: Vector2D = Vector2D();
+    override fun toOrderString(): String {
+        return "TORPEDO " + target.getIX() + " " + target.getIY();
+    }
+}
+
+class LoadTorpedo : Order() {
+    override fun toOrderString(): String {
+        return "TORPEDO"
+    }
+
+}
+
+class Move : Order() {
+    var target: Vector2D = Vector2D();
+    override fun toOrderString(): String {
+        return "MOVE " + target.getIX() + " " + target.getIY();
+    }
 }
 
 class Vector2D(var x: Double, var y: Double) {
