@@ -7,359 +7,416 @@ import kotlin.math.sqrt
 
 fun main(args: Array<String>) {
 
-    val input = Scanner(System.`in`)
-    val width = input.nextInt()
-    val height = input.nextInt()
-    val myId = input.nextInt()
+  val input = Scanner(System.`in`)
+  val width = input.nextInt()
+  val height = input.nextInt()
+  val myId = input.nextInt()
 
+  if (input.hasNextLine()) {
+    input.nextLine()
+  }
+
+  // Create Map
+  val map: Map = Map(width, height);
+  for (j in 0 until height)
+    map.parse(input.nextLine(), j);
+
+  // Initialise environment
+  var env: Env = Env(map);
+  env.submarine.id = myId;
+
+  // Write an action using println()
+  // To debug: System.err.println("Debug messages...");
+
+  println("7 7")
+
+  // game loop
+  while (true) {
+    // Update environment
+    env.submarine.position = Vector2D(input.nextInt(), input.nextInt());
+    env.submarine.life = input.nextInt();
+    env.opponent.life = input.nextInt();
+    env.submarine.torpedoCoolDown = input.nextInt()
+    env.submarine.sonarCoolDown = input.nextInt()
+    env.submarine.silenceCoolDown = input.nextInt()
+    env.submarine.mineCoolDown = input.nextInt()
+    env.submarine.sonarResult = input.next()
     if (input.hasNextLine()) {
-        input.nextLine()
+      input.nextLine()
     }
-
-    // Create Map 
-    val map: Map = Map(width, height);
-    for (j in 0 until height) {
-        val line = input.nextLine()
-        for (i in line.indices)
-            if (line.toCharArray()[i] != '.')
-                map.addIsland(Vector2D(i, j))
-    }
-
-    // Initialise environement
-    var env: Env = Env(map);
-    env.submarine.id = myId;
+    val opponentOrders = input.nextLine()
 
     // Write an action using println()
     // To debug: System.err.println("Debug messages...");
 
-    println("7 7")
-
-    // game loop
-    while (true) {
-        // Update environment
-        env.submarine.position = Vector2D(input.nextInt(), input.nextInt());
-        env.submarine.life = input.nextInt();
-        env.opponent.life = input.nextInt();
-        env.submarine.torpedoCoolDown = input.nextInt()
-        env.submarine.sonarCoolDown = input.nextInt()
-        env.submarine.silenceCoolDown = input.nextInt()
-        env.submarine.mineCoolDown = input.nextInt()
-        env.submarine.sonarResult = input.next()
-        if (input.hasNextLine()) {
-            input.nextLine()
-        }
-        val opponentOrders = input.nextLine()
-
-        // Write an action using println()
-        // To debug: System.err.println("Debug messages...");
-
-        println("MOVE N TORPEDO")
-    }
+    println("MOVE N TORPEDO")
+  }
 
 
 }
 
 class Env(map: Map) {
-    var submarine: Submarine = Submarine();
-    var opponent: Opponent = Opponent();
+  var submarine: Submarine = Submarine();
+  var opponent: Opponent = Opponent();
 }
 
 class Map(width: Int, height: Int) {
-    val size: Vector2D = Vector2D(width, height);
-    var islands: MutableSet<Vector2D> = HashSet();
+  val size: Vector2D = Vector2D(width, height);
+  var islands: MutableSet<Vector2D> = HashSet();
 
-    fun isIsland(pos: Vector2D): Boolean {
-        return islands.contains(pos);
-    }
+  fun isIsland(pos: Vector2D): Boolean {
+    return islands.contains(pos);
+  }
 
-    fun isWater(pos: Vector2D): Boolean {
-        return !isIsland(pos);
-    }
+  fun isWater(pos: Vector2D): Boolean {
+    return !isIsland(pos);
+  }
 
-    fun addIsland(pos: Vector2D) {
-        TODO("Not yet implemented")
-        islands.add(pos);TODO("Not yet implemented")
-    }
+  fun addIsland(pos: Vector2D) {
+    islands.add(pos)
+  }
 
-    fun getWaterSection(section: Int): Set<Vector2D> {
-        if (section < 1 || section > 9)
-            throw RuntimeException("Section should be between 1 and 9")
-        val water: MutableSet<Vector2D> = HashSet();
-        val x: Int = section % 3;
-        val y: Int = section / 3;
-        for (i in x - 1 until x + 5) {
-            for (j in y - 1 until y + 5) {
-                val pos: Vector2D = Vector2D(i, j);
-                if (isWater(pos))
-                    water.add(pos);
-            }
-        }
-        return water;
+  fun parse(line: String, j: Int) {
+    for (i in line.indices)
+      if (line.toCharArray()[i] != '.')
+        this.addIsland(Vector2D(i, j))
+  }
+
+  fun getWaterSection(section: Int): Set<Vector2D> {
+    if (section < 1 || section > 9)
+      throw RuntimeException("Section should be between 1 and 9")
+    val water: MutableSet<Vector2D> = HashSet();
+    val x: Int = section % 3;
+    val y: Int = section / 3;
+    for (i in x - 1 until x + 5) {
+      for (j in y - 1 until y + 5) {
+        val pos: Vector2D = Vector2D(i, j);
+        if (isWater(pos))
+          water.add(pos);
+      }
     }
+    return water;
+  }
+
+  fun neigh(pos: Vector2D): Set<Vector2D> {
+    var neigh: MutableSet<Vector2D> = mutableSetOf();
+    for (dx in -1 until 1 step 2)
+      for (dy in -1 until 1 step 2)
+        if (pos.x + dx >= 0 && pos.x + dx < this.size.x)
+          if (pos.y + dy >= 0 && pos.y + dy < this.size.y)
+            if (isWater(Vector2D(pos.x + dx, pos.y + dy)))
+              neigh.add(Vector2D(pos.x + dx, pos.y + dy));
+    return neigh;
+  }
 
 }
 
 class Submarine() {
-    var id: Int = 0;
-    var position: Vector2D = Vector2D();
-    var life: Int = 6;
-    var torpedoCoolDown: Int = 0;
-    var sonarCoolDown: Int = 0;
-    var silenceCoolDown: Int = 0;
-    var mineCoolDown: Int = 0;
-    var sonarResult: String = "NA"; // Can be Y, N or NA
+  var id: Int = 0;
+  var position: Vector2D = Vector2D();
+  var life: Int = 6;
+  var torpedoCoolDown: Int = 0;
+  var sonarCoolDown: Int = 0;
+  var silenceCoolDown: Int = 0;
+  var mineCoolDown: Int = 0;
+  var sonarResult: String = "NA"; // Can be Y, N or NA
 
 }
 
 class Opponent {
-    var life: Int = 6;
+  var life: Int = 6;
 }
 
 abstract class Order {
-    abstract fun toOrderString(): String;
+  abstract fun toOrderString(): String;
 }
 
 class Surface : Order() {
-    override fun toOrderString(): String {
-        return "SURFACE"
-    }
+  override fun toOrderString(): String {
+    return "SURFACE"
+  }
 }
 
 class Torpedo : Order() {
-    var target: Vector2D = Vector2D();
-    override fun toOrderString(): String {
-        return "TORPEDO " + target.getIX() + " " + target.getIY();
-    }
+  var target: Vector2D = Vector2D();
+  override fun toOrderString(): String {
+    return "TORPEDO " + target.getIX() + " " + target.getIY();
+  }
 }
 
 class LoadTorpedo : Order() {
-    override fun toOrderString(): String {
-        return "TORPEDO"
+  override fun toOrderString(): String {
+    return "TORPEDO"
+  }
+}
+
+class LongestPathAlgorithm(map: Map, start: Vector2D) {
+
+  var graph: Graph<Vector2D> = Graph();
+
+  init {
+    // Populate graph
+    var visited: MutableSet<Vector2D> = mutableSetOf();
+    var toVisit: MutableList<Vector2D> = mutableListOf();
+    toVisit.add(start);
+    while (toVisit.isNotEmpty()) {
+      var next: Vector2D = toVisit.removeAt(0);
+      if (!visited.contains(next)) {
+        for (neigh in map.neigh(next)) {
+          graph.addEdge(next, neigh);
+          toVisit.add(neigh);
+        }
+        visited.add(next);
+      }
     }
+  }
 
 }
 
+
 class Move : Order() {
-    var target: Vector2D = Vector2D();
-    override fun toOrderString(): String {
-        return "MOVE " + target.getIX() + " " + target.getIY();
+  var target: Vector2D = Vector2D();
+  override fun toOrderString(): String {
+    return "MOVE " + target.getIX() + " " + target.getIY();
+  }
+}
+
+class Graph<T> {
+  private val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
+
+  fun addEdge(sourceVertex: T, destinationVertex: T) {
+    // Add edge to source vertex / node.
+    adjacencyMap
+        .computeIfAbsent(sourceVertex) { HashSet() }
+        .add(destinationVertex)
+    // Add edge to destination vertex / node.
+    adjacencyMap
+        .computeIfAbsent(destinationVertex) { HashSet() }
+        .add(sourceVertex)
+  }
+
+  override fun toString(): String = StringBuffer().apply {
+    for (key in adjacencyMap.keys) {
+      append("$key -> ")
+      append(adjacencyMap[key]?.joinToString(", ", "[", "]\n"))
     }
+  }.toString()
 }
 
 class Vector2D(var x: Double, var y: Double) {
 
-    constructor(vector2D: Vector2D) : this(vector2D.x, vector2D.y);
-    constructor(ix: Int, iy: Int) : this(ix.toDouble(), iy.toDouble());
-    constructor() : this(0, 0);
+  constructor(vector2D: Vector2D) : this(vector2D.x, vector2D.y);
+  constructor(ix: Int, iy: Int) : this(ix.toDouble(), iy.toDouble());
+  constructor() : this(0, 0);
 
-    fun set(vector2D: Vector2D) {
-        this.x = vector2D.x;
-        this.y = vector2D.y;
-    }
+  fun set(vector2D: Vector2D) {
+    this.x = vector2D.x;
+    this.y = vector2D.y;
+  }
 
-    fun getIX(): Int {
-        return x.toInt();
-    }
+  fun getIX(): Int {
+    return x.toInt();
+  }
 
-    fun getIY(): Int {
-        return y.toInt();
-    }
+  fun getIY(): Int {
+    return y.toInt();
+  }
 
-    fun length(): Double {
-        return sqrt((x * x + y * y).toDouble());
-    }
+  fun length(): Double {
+    return sqrt((x * x + y * y).toDouble());
+  }
 
-    fun distance(vx: Double, vy: Double): Double {
-        var dx = vx
-        var dy = vy
-        dx -= x
-        dy -= y
-        return sqrt(dx * dx + dy * dy)
-    }
+  fun distance(vx: Double, vy: Double): Double {
+    var dx = vx
+    var dy = vy
+    dx -= x
+    dy -= y
+    return sqrt(dx * dx + dy * dy)
+  }
 
-    fun distance(v: Vector2D): Double {
-        val vx = v.x - this.x;
-        val vy = v.y - this.y;
-        return sqrt((vx * vx + vy * vy).toDouble());
-    }
+  fun distance(v: Vector2D): Double {
+    val vx = v.x - this.x;
+    val vy = v.y - this.y;
+    return sqrt((vx * vx + vy * vy).toDouble());
+  }
 
-    fun getAngle(): Double {
-        return atan2(y, x)
-    }
+  fun getAngle(): Double {
+    return atan2(y, x)
+  }
 
-    fun normalize() {
-        val magnitude: Double = length()
-        x /= magnitude
-        y /= magnitude
-    }
+  fun normalize() {
+    val magnitude: Double = length()
+    x /= magnitude
+    y /= magnitude
+  }
 
-    fun getNormalized(): Vector2D {
-        val magnitude: Double = length()
-        return Vector2D(x / magnitude, y / magnitude)
-    }
+  fun getNormalized(): Vector2D {
+    val magnitude: Double = length()
+    return Vector2D(x / magnitude, y / magnitude)
+  }
 
-    fun toCartesian(magnitude: Double, angle: Double): Vector2D {
-        return Vector2D(magnitude * cos(angle), magnitude * sin(angle))
-    }
+  fun toCartesian(magnitude: Double, angle: Double): Vector2D {
+    return Vector2D(magnitude * cos(angle), magnitude * sin(angle))
+  }
 
-    fun add(v: Vector2D) {
-        x += v.x
-        y += v.y
-    }
+  fun add(v: Vector2D) {
+    x += v.x
+    y += v.y
+  }
 
-    fun add(vx: Double, vy: Double) {
-        x += vx
-        y += vy
-    }
+  fun add(vx: Double, vy: Double) {
+    x += vx
+    y += vy
+  }
 
-    fun add(v1: Vector2D, v2: Vector2D): Vector2D {
-        return Vector2D(v1.x + v2.x, v1.y + v2.y)
-    }
+  fun add(v1: Vector2D, v2: Vector2D): Vector2D {
+    return Vector2D(v1.x + v2.x, v1.y + v2.y)
+  }
 
-    fun getAdded(v: Vector2D): Vector2D {
-        return Vector2D(x + v.x, y + v.y)
-    }
+  fun getAdded(v: Vector2D): Vector2D {
+    return Vector2D(x + v.x, y + v.y)
+  }
 
-    fun subtract(v: Vector2D) {
-        x -= v.x
-        y -= v.y
-    }
+  fun subtract(v: Vector2D) {
+    x -= v.x
+    y -= v.y
+  }
 
-    fun subtract(vx: Double, vy: Double) {
-        x -= vx
-        y -= vy
-    }
+  fun subtract(vx: Double, vy: Double) {
+    x -= vx
+    y -= vy
+  }
 
-    fun getSubtracted(v: Vector2D): Vector2D {
-        return Vector2D(x - v.x, y - v.y)
-    }
+  fun getSubtracted(v: Vector2D): Vector2D {
+    return Vector2D(x - v.x, y - v.y)
+  }
 
-    fun multiply(scalar: Double) {
-        x *= scalar
-        y *= scalar
-    }
+  fun multiply(scalar: Double) {
+    x *= scalar
+    y *= scalar
+  }
 
-    fun getMultiplied(scalar: Double): Vector2D {
-        return Vector2D(x * scalar, y * scalar)
-    }
+  fun getMultiplied(scalar: Double): Vector2D {
+    return Vector2D(x * scalar, y * scalar)
+  }
 
-    fun divide(scalar: Double) {
-        x /= scalar
-        y /= scalar
-    }
+  fun divide(scalar: Double) {
+    x /= scalar
+    y /= scalar
+  }
 
-    fun getDivided(scalar: Double): Vector2D {
-        return Vector2D(x / scalar, y / scalar)
-    }
+  fun getDivided(scalar: Double): Vector2D {
+    return Vector2D(x / scalar, y / scalar)
+  }
 
-    fun getPerp(): Vector2D {
-        return Vector2D(-y, x)
-    }
+  fun getPerp(): Vector2D {
+    return Vector2D(-y, x)
+  }
 
-    fun dot(v: Vector2D): Double {
-        return x * v.x + y * v.y
-    }
+  fun dot(v: Vector2D): Double {
+    return x * v.x + y * v.y
+  }
 
-    fun dot(vx: Double, vy: Double): Double {
-        return x * vx + y * vy
-    }
+  fun dot(vx: Double, vy: Double): Double {
+    return x * vx + y * vy
+  }
 
-    fun dot(v1: Vector2D, v2: Vector2D): Double {
-        return v1.x * v2.x + v1.y * v2.y
-    }
+  fun dot(v1: Vector2D, v2: Vector2D): Double {
+    return v1.x * v2.x + v1.y * v2.y
+  }
 
-    fun cross(v: Vector2D): Double {
-        return x * v.y - y * v.x
-    }
+  fun cross(v: Vector2D): Double {
+    return x * v.y - y * v.x
+  }
 
-    fun cross(vx: Double, vy: Double): Double {
-        return x * vy - y * vx
-    }
+  fun cross(vx: Double, vy: Double): Double {
+    return x * vy - y * vx
+  }
 
-    fun cross(v1: Vector2D, v2: Vector2D): Double {
-        return v1.x * v2.y - v1.y * v2.x
-    }
+  fun cross(v1: Vector2D, v2: Vector2D): Double {
+    return v1.x * v2.y - v1.y * v2.x
+  }
 
-    fun project(v: Vector2D): Double {
-        return this.dot(v) / this.length()
-    }
+  fun project(v: Vector2D): Double {
+    return this.dot(v) / this.length()
+  }
 
-    fun project(vx: Double, vy: Double): Double {
-        return this.dot(vx, vy) / this.length()
-    }
+  fun project(vx: Double, vy: Double): Double {
+    return this.dot(vx, vy) / this.length()
+  }
 
-    fun project(v1: Vector2D, v2: Vector2D): Double {
-        return dot(v1, v2) / v1.length()
-    }
+  fun project(v1: Vector2D, v2: Vector2D): Double {
+    return dot(v1, v2) / v1.length()
+  }
 
-    fun getProjectedVector(v: Vector2D): Vector2D {
-        return getNormalized()!!.getMultiplied(this.dot(v!!) / this.length())
-    }
+  fun getProjectedVector(v: Vector2D): Vector2D {
+    return getNormalized()!!.getMultiplied(this.dot(v!!) / this.length())
+  }
 
-    fun getProjectedVector(vx: Double, vy: Double): Vector2D {
-        return getNormalized()!!.getMultiplied(this.dot(vx, vy) / this.length())
-    }
+  fun getProjectedVector(vx: Double, vy: Double): Vector2D {
+    return getNormalized()!!.getMultiplied(this.dot(vx, vy) / this.length())
+  }
 
-    fun getProjectedVector(v1: Vector2D, v2: Vector2D): Vector2D {
-        return v1.getNormalized()!!.getMultiplied(dot(v1, v2) / v1.length())
-    }
+  fun getProjectedVector(v1: Vector2D, v2: Vector2D): Vector2D {
+    return v1.getNormalized()!!.getMultiplied(dot(v1, v2) / v1.length())
+  }
 
-    fun rotateBy(angle: Double) {
-        val cos = cos(angle)
-        val sin = sin(angle)
-        val rx = x * cos - y * sin
-        y = x * sin + y * cos
-        x = rx
-    }
+  fun rotateBy(angle: Double) {
+    val cos = cos(angle)
+    val sin = sin(angle)
+    val rx = x * cos - y * sin
+    y = x * sin + y * cos
+    x = rx
+  }
 
-    fun getRotatedBy(angle: Double): Vector2D {
-        val cos = cos(angle)
-        val sin = sin(angle)
-        return Vector2D(x * cos - y * sin, x * sin + y * cos)
-    }
+  fun getRotatedBy(angle: Double): Vector2D {
+    val cos = cos(angle)
+    val sin = sin(angle)
+    return Vector2D(x * cos - y * sin, x * sin + y * cos)
+  }
 
-    fun rotateTo(angle: Double) {
-        set(toCartesian(length(), angle))
-    }
+  fun rotateTo(angle: Double) {
+    set(toCartesian(length(), angle))
+  }
 
-    fun getRotatedTo(angle: Double): Vector2D {
-        return toCartesian(length(), angle)
-    }
+  fun getRotatedTo(angle: Double): Vector2D {
+    return toCartesian(length(), angle)
+  }
 
-    fun reverse() {
-        x = -x
-        y = -y
-    }
+  fun reverse() {
+    x = -x
+    y = -y
+  }
 
-    fun getReversed(): Vector2D {
-        return Vector2D(-x, -y)
-    }
+  fun getReversed(): Vector2D {
+    return Vector2D(-x, -y)
+  }
 
-    fun clone(): Vector2D {
-        return Vector2D(x, y)
-    }
+  fun clone(): Vector2D {
+    return Vector2D(x, y)
+  }
 
 
-    override fun toString(): String {
-        return "(x=$x, y=$y)"
-    }
+  override fun toString(): String {
+    return "(x=$x, y=$y)"
+  }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (javaClass != other?.javaClass) return false
 
-        other as Vector2D
+    other as Vector2D
 
-        if (x != other.x) return false
-        if (y != other.y) return false
+    if (x != other.x) return false
+    if (y != other.y) return false
 
-        return true
-    }
+    return true
+  }
 
-    override fun hashCode(): Int {
-        var result = x.hashCode()
-        result = 31 * result + y.hashCode()
-        return result
-    }
+  override fun hashCode(): Int {
+    var result = x.hashCode()
+    result = 31 * result + y.hashCode()
+    return result
+  }
 
 }
