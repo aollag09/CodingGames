@@ -68,7 +68,8 @@ class MapTest {
   @Test
   fun graph() {
     var map: Map = generateMapTest1();
-    println(map.directedGraph(Vector2D(0, 0)).toString())
+    val graph = map.directedGraph(Vector2D());
+    assertEquals(2, graph.adjacencyMap[Vector2D()]!!.size);
   }
 
 

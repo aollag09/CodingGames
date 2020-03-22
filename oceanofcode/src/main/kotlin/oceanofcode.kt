@@ -1,8 +1,7 @@
-package main.kotlin
-
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
+
 
 fun main(args: Array<String>) {
 
@@ -27,7 +26,7 @@ fun main(args: Array<String>) {
   // Write an action using println()
   // To debug: System.err.println("Debug messages...");
 
-  println("7 7")
+  println("0 0")
 
   // game loop
   while (true) {
@@ -40,28 +39,52 @@ fun main(args: Array<String>) {
     env.submarine.silenceCoolDown = input.nextInt()
     env.submarine.mineCoolDown = input.nextInt()
     env.submarine.sonarResult = input.next()
+    env.submarineTrail.add(env.submarine.position);
     if (input.hasNextLine()) {
       input.nextLine()
     }
     val opponentOrders = input.nextLine()
 
-    // Write an action using println()
-    // To debug: System.err.println("Debug messages...");
+    val graph = env.moveGraph();
+    val longestPath = LongestPath(graph);
+    val path: MutableList<Vector2D> = longestPath.solve(env.submarine.position);
+    val direction = path[0].direction(path[1])
 
-    println("MOVE N TORPEDO")
+    println("MOVE $direction TORPEDO")
   }
 
 
 }
 
-class Env(map: Map) {
-  var submarine: Submarine = Submarine();
-  var opponent: Opponent = Opponent();
+class Env(val map: Map) {
+  val submarine: Submarine = Submarine();
+  val opponent: Opponent = Opponent();
+  val submarineTrail: MutableSet<Vector2D> = mutableSetOf();
+
+  /** Create a graph of next movable positions regarding environment */
+  fun moveGraph(start: Vector2D = submarine.position): Graph<Vector2D> {
+    val graph: Graph<Vector2D> = Graph(true);
+    val visited: MutableSet<Vector2D> = submarineTrail.toMutableSet();
+    val toVisit: MutableList<Vector2D> = mutableListOf();
+    toVisit.add(start);
+    while (toVisit.isNotEmpty()) {
+      val next: Vector2D = toVisit.removeAt(0);
+      if (!visited.contains(next)) {
+        for (neigh in map.neigh(next))
+          if (!visited.contains(neigh)) {
+            graph.addEdge(next, neigh);
+            toVisit.add(neigh);
+          }
+        visited.add(next);
+      }
+    }
+    return graph;
+  }
 }
 
 class Map(width: Int, height: Int) {
-  val size: Vector2D = Vector2D(width, height);
-  var islands: MutableSet<Vector2D> = HashSet();
+  private val size: Vector2D = Vector2D(width, height);
+  private val islands: MutableSet<Vector2D> = HashSet();
 
   fun isIsland(pos: Vector2D): Boolean {
     return islands.contains(pos);
@@ -105,26 +128,7 @@ class Map(width: Int, height: Int) {
     return neigh;
   }
 
-  fun directedGraph(start: Vector2D): Graph<Vector2D> {
-    // Populate graph
-    var graph: Graph<Vector2D> = Graph();
-    val visited: MutableSet<Vector2D> = mutableSetOf();
-    val toVisit: MutableList<Vector2D> = mutableListOf();
-    toVisit.add(start);
-    while (toVisit.isNotEmpty()) {
-      val next: Vector2D = toVisit.removeAt(0);
-      if (!visited.contains(next)) {
-        for (neigh in this.neigh(next)) {
-          if (!visited.contains(neigh)) {
-            graph.addEdge(next, neigh);
-            toVisit.add(neigh);
-          }
-        }
-        visited.add(next);
-      }
-    }
-    return graph;
-  }
+
 }
 
 class Submarine() {
@@ -167,11 +171,83 @@ class LoadTorpedo : Order() {
 }
 
 
+class LongestPath(private val graph: Graph<Vector2D>) {
 
-class BiggestGraphAlgo {
+  // Discovered node map
+  private val discovered: MutableMap<Vector2D, Boolean> = hashMapOf();
 
-  fun solve(): Vector2D {
-    return Vector2D();
+  // Topological sort of all Nodes
+  private val sort: ArrayDeque<Vector2D> = ArrayDeque();
+
+  // Longest distance to reach the node
+  private val longestDistance: MutableMap<Vector2D, Int> = hashMapOf();
+
+  /** Return the longest path from input source in the graph */
+  fun solve(source: Vector2D): MutableList<Vector2D> {
+    // Cleaning
+    discovered.clear();
+    sort.clear();
+    longestDistance.clear();
+
+    // Run dfs for topological sorting
+    dfs(source, 0);
+
+    // Compute the length of the longest path ending at v by looking at its incoming
+    // neighbors and adding one to the maximum length recorded for those neighbors.
+    for (node in sort) longestDistance[node] = 0;
+    for (from: Vector2D in sort)
+      if (graph.adjacencyMap.containsKey(from))
+        for (to: Vector2D in graph.adjacencyMap[from]!!)
+          longestDistance[to] = max(longestDistance[to]!!, longestDistance[from]!! + 1);
+
+    // Starting from longest distance, step back to node with next highest distance
+    var max: Int = 0;
+    var end: Vector2D = Vector2D();
+    for (node in longestDistance.keys) {
+      if (longestDistance[node]!! > max) {
+        max = longestDistance[node]!!;
+        end = node;
+      }
+    }
+
+    // Compute the path
+    val path: MutableList<Vector2D> = mutableListOf();
+    findPath(source, end, path);
+
+    System.err.println(path);
+
+    return path;
+  }
+
+  // Reconstruct path
+  private fun findPath(source: Vector2D, node: Vector2D, path: MutableList<Vector2D>) {
+    if (node == source)
+      path.add(node);
+    else {
+      //find back-edge of highest length
+      var maxDistance = -1
+      var next: Vector2D = source
+      for (i in graph.adjacencyMap.keys)
+        if (graph.adjacencyMap[i]!!.contains(node) && longestDistance[i]!! > maxDistance) {
+          maxDistance = longestDistance[i]!!
+          next = i
+        }
+      findPath(source, next, path)
+      path.add(node);
+    }
+  }
+
+
+  private fun dfs(node: Vector2D, depth: Int) {
+    discovered[node] = true;
+    if (!graph.adjacencyMap[node].isNullOrEmpty()) {
+      for (next in graph.adjacencyMap[node]!!) {
+        if (!discovered.contains(next) || discovered[next] == false) {
+          dfs(next, depth + 1);
+        }
+      }
+    }
+    sort.push(node);
   }
 
 }
@@ -184,20 +260,23 @@ class Move : Order() {
   }
 }
 
-class Graph<T> {
-  private val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
+class Graph<T>(var directed: Boolean) {
+  val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
 
-  fun addEdge(sourceVertex: T, destinationVertex: T) {
+  fun addEdge(source: T, target: T) {
     // Add edge to source vertex / node.
     adjacencyMap
-        .computeIfAbsent(sourceVertex) { HashSet() }
-        .add(destinationVertex)
+        .computeIfAbsent(source) { HashSet() }
+        .add(target)
+    if (!this.directed) {
+      adjacencyMap
+          .computeIfAbsent(target) { HashSet() }
+          .add(source)
+    }
   }
 
   fun size(): Int {
-    var size = 0;
-    adjacencyMap.forEach { (_, hashSet) -> size += hashSet.size }
-    return size;
+    return adjacencyMap.size;
   }
 
   override fun toString(): String = StringBuffer().apply {
