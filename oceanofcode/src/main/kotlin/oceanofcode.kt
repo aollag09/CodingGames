@@ -2,7 +2,6 @@ import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
 
-
 fun main(args: Array<String>) {
 
   val input = Scanner(System.`in`)

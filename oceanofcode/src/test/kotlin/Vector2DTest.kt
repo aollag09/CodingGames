@@ -1,4 +1,4 @@
-import main.kotlin.Vector2D
+import Vector2D
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

@@ -1,5 +1,3 @@
-import main.kotlin.Map
-import main.kotlin.Vector2D
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -63,13 +61,6 @@ class MapTest {
 
     neigh = map.neigh(Vector2D(14, 0))
     assertEquals(0, neigh.size)
-  }
-
-  @Test
-  fun graph() {
-    var map: Map = generateMapTest1();
-    val graph = map.directedGraph(Vector2D());
-    assertEquals(2, graph.adjacencyMap[Vector2D()]!!.size);
   }
 
 
