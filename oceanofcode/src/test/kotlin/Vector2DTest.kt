@@ -21,4 +21,10 @@ internal class Vector2DTest {
     assertEquals(Vector2D(0, 0), Vector2D());
     assertEquals(Vector2D(0, 0), Vector2D(0.0, 0.0));
   }
+
+  @Test
+  fun testDirection(){
+    assertEquals("N", Vector2D( 1,1).direction( Vector2D(1, 0)))
+    assertEquals("E", Vector2D( 1,1).direction( Vector2D(2, 1)))
+  }
 }

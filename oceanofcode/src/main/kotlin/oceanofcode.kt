@@ -228,6 +228,22 @@ class Vector2D(var x: Double, var y: Double) {
     return sqrt((x * x + y * y).toDouble());
   }
 
+  fun direction(v: Vector2D): String {
+    if (x != v.x && y != v.y)
+      throw RuntimeException("Impossible to compute diagonal direction");
+    if (x == v.x && y == v.y)
+      throw RuntimeException("No direction, stay on same position")
+    if (v.x > x)
+      return "E"
+    if (v.x < x)
+      return "W"
+    if (v.y > y)
+      return "S"
+    if (v.y < y)
+      return "N"
+    return "NA"
+  }
+
   fun distance(vx: Double, vy: Double): Double {
     var dx = vx
     var dy = vy
