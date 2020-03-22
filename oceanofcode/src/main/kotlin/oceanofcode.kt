@@ -1,3 +1,5 @@
+package main.kotlin
+
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.atan2
@@ -16,13 +18,13 @@ fun main(args: Array<String>) {
     input.nextLine()
   }
 
-  // Create Map
+  // Create main.kotlin.Map
   val map: Map = Map(width, height);
   for (j in 0 until height)
     map.parse(input.nextLine(), j);
 
   // Initialise environment
-  var env: Env = Env(map);
+  val env: Env = Env(map);
   env.submarine.id = myId;
 
   // Write an action using println()
@@ -99,7 +101,7 @@ class Map(width: Int, height: Int) {
   }
 
   fun neigh(pos: Vector2D): Set<Vector2D> {
-    var neigh: MutableSet<Vector2D> = mutableSetOf();
+    val neigh: MutableSet<Vector2D> = mutableSetOf();
     for (dx in -1 until 1 step 2)
       for (dy in -1 until 1 step 2)
         if (pos.x + dx >= 0 && pos.x + dx < this.size.x)
@@ -152,15 +154,15 @@ class LoadTorpedo : Order() {
 
 class LongestPathAlgorithm(map: Map, start: Vector2D) {
 
-  var graph: Graph<Vector2D> = Graph();
+  private var graph: Graph<Vector2D> = Graph();
 
   init {
     // Populate graph
-    var visited: MutableSet<Vector2D> = mutableSetOf();
-    var toVisit: MutableList<Vector2D> = mutableListOf();
+    val visited: MutableSet<Vector2D> = mutableSetOf();
+    val toVisit: MutableList<Vector2D> = mutableListOf();
     toVisit.add(start);
     while (toVisit.isNotEmpty()) {
-      var next: Vector2D = toVisit.removeAt(0);
+      val next: Vector2D = toVisit.removeAt(0);
       if (!visited.contains(next)) {
         for (neigh in map.neigh(next)) {
           graph.addEdge(next, neigh);
@@ -169,6 +171,12 @@ class LongestPathAlgorithm(map: Map, start: Vector2D) {
         visited.add(next);
       }
     }
+  }
+
+  fun solve(): Vector2D {
+
+
+    return Vector2D();
   }
 
 }
@@ -350,15 +358,15 @@ class Vector2D(var x: Double, var y: Double) {
   }
 
   fun getProjectedVector(v: Vector2D): Vector2D {
-    return getNormalized()!!.getMultiplied(this.dot(v!!) / this.length())
+    return getNormalized().getMultiplied(this.dot(v) / this.length())
   }
 
   fun getProjectedVector(vx: Double, vy: Double): Vector2D {
-    return getNormalized()!!.getMultiplied(this.dot(vx, vy) / this.length())
+    return getNormalized().getMultiplied(this.dot(vx, vy) / this.length())
   }
 
   fun getProjectedVector(v1: Vector2D, v2: Vector2D): Vector2D {
-    return v1.getNormalized()!!.getMultiplied(dot(v1, v2) / v1.length())
+    return v1.getNormalized().getMultiplied(dot(v1, v2) / v1.length())
   }
 
   fun rotateBy(angle: Double) {

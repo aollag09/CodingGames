@@ -1,1 +1,3 @@
-/unleashthegeek/.gradle/*
+/unleashthegeek/.gradle/
+/oceanofcode/.gradle/
+/oceanofcode/build/
