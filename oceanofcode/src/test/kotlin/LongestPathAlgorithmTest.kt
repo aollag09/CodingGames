@@ -7,9 +7,6 @@ internal class LongestPathAlgorithmTest {
   @Test
   fun solve() {
 
-    var algo = LongestPathAlgorithm(MapTest.generateMapTest1(), Vector2D());
-    println(algo.graph.toString());
-
 
   }
 }

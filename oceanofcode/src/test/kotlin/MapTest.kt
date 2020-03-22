@@ -65,5 +65,11 @@ class MapTest {
     assertEquals(0, neigh.size)
   }
 
+  @Test
+  fun graph() {
+    var map: Map = generateMapTest1();
+    println(map.directedGraph(Vector2D(0, 0)).toString())
+  }
+
 
 }

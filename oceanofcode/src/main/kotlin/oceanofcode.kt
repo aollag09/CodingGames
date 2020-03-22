@@ -105,6 +105,26 @@ class Map(width: Int, height: Int) {
     return neigh;
   }
 
+  fun directedGraph(start: Vector2D): Graph<Vector2D> {
+    // Populate graph
+    var graph: Graph<Vector2D> = Graph();
+    val visited: MutableSet<Vector2D> = mutableSetOf();
+    val toVisit: MutableList<Vector2D> = mutableListOf();
+    toVisit.add(start);
+    while (toVisit.isNotEmpty()) {
+      val next: Vector2D = toVisit.removeAt(0);
+      if (!visited.contains(next)) {
+        for (neigh in this.neigh(next)) {
+          if (!visited.contains(neigh)) {
+            graph.addEdge(next, neigh);
+            toVisit.add(neigh);
+          }
+        }
+        visited.add(next);
+      }
+    }
+    return graph;
+  }
 }
 
 class Submarine() {
@@ -146,30 +166,11 @@ class LoadTorpedo : Order() {
   }
 }
 
-class LongestPathAlgorithm(map: Map, start: Vector2D) {
 
-  var graph: Graph<Vector2D> = Graph();
 
-  init {
-    // Populate graph
-    val visited: MutableSet<Vector2D> = mutableSetOf();
-    val toVisit: MutableList<Vector2D> = mutableListOf();
-    toVisit.add(start);
-    while (toVisit.isNotEmpty()) {
-      val next: Vector2D = toVisit.removeAt(0);
-      if (!visited.contains(next)) {
-        for (neigh in map.neigh(next)) {
-          graph.addEdge(next, neigh);
-          toVisit.add(neigh);
-        }
-        visited.add(next);
-      }
-    }
-  }
+class BiggestGraphAlgo {
 
   fun solve(): Vector2D {
-
-
     return Vector2D();
   }
 
@@ -191,10 +192,12 @@ class Graph<T> {
     adjacencyMap
         .computeIfAbsent(sourceVertex) { HashSet() }
         .add(destinationVertex)
-    // Add edge to destination vertex / node.
-    adjacencyMap
-        .computeIfAbsent(destinationVertex) { HashSet() }
-        .add(sourceVertex)
+  }
+
+  fun size(): Int {
+    var size = 0;
+    adjacencyMap.forEach { (_, hashSet) -> size += hashSet.size }
+    return size;
   }
 
   override fun toString(): String = StringBuffer().apply {
