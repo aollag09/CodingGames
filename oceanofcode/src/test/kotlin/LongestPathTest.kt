@@ -6,7 +6,9 @@ internal class LongestPathTest {
   fun dfs() {
     val graph = EnvTest.generateEnvTest1().moveGraph();
     val longestPath: LongestPath = LongestPath(graph);
-    longestPath.solve(Vector2D());
+    val path = longestPath.solve(Vector2D());
+    for (vec in path)
+      println(vec)
   }
 
 

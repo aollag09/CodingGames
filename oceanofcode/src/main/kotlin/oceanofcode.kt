@@ -38,11 +38,11 @@ fun main(args: Array<String>) {
     env.submarine.silenceCoolDown = input.nextInt()
     env.submarine.mineCoolDown = input.nextInt()
     env.submarine.sonarResult = input.next()
-    env.submarineTrail.add(env.submarine.position);
     if (input.hasNextLine()) {
       input.nextLine()
     }
     val opponentOrders = input.nextLine()
+    System.err.println(opponentOrders);
 
     val graph = env.moveGraph();
     val longestPath = LongestPath(graph);
@@ -50,6 +50,8 @@ fun main(args: Array<String>) {
     val direction = path[0].direction(path[1])
 
     println("MOVE $direction TORPEDO")
+
+    env.submarineTrail.add(env.submarine.position);
   }
 
 
@@ -69,14 +71,15 @@ class Env(val map: Map) {
     while (toVisit.isNotEmpty()) {
       val next: Vector2D = toVisit.removeAt(0);
       if (!visited.contains(next)) {
-        for (neigh in map.neigh(next))
-          if (!visited.contains(neigh)) {
-            graph.addEdge(next, neigh);
+        for (neigh in map.neigh(next)) {
+          graph.addEdge(next, neigh);
+          if (!visited.contains(neigh))
             toVisit.add(neigh);
-          }
+        }
         visited.add(next);
       }
     }
+    println(graph.toString())
     return graph;
   }
 }
@@ -181,6 +184,7 @@ class LongestPath(private val graph: Graph<Vector2D>) {
   // Longest distance to reach the node
   private val longestDistance: MutableMap<Vector2D, Int> = hashMapOf();
 
+
   /** Return the longest path from input source in the graph */
   fun solve(source: Vector2D): MutableList<Vector2D> {
     // Cleaning
@@ -190,6 +194,7 @@ class LongestPath(private val graph: Graph<Vector2D>) {
 
     // Run dfs for topological sorting
     dfs(source, 0);
+    println( "End dfs")
 
     // Compute the length of the longest path ending at v by looking at its incoming
     // neighbors and adding one to the maximum length recorded for those neighbors.
@@ -212,8 +217,6 @@ class LongestPath(private val graph: Graph<Vector2D>) {
     // Compute the path
     val path: MutableList<Vector2D> = mutableListOf();
     findPath(source, end, path);
-
-    System.err.println(path);
 
     return path;
   }
@@ -238,6 +241,7 @@ class LongestPath(private val graph: Graph<Vector2D>) {
 
 
   private fun dfs(node: Vector2D, depth: Int) {
+    println("Discover $node");
     discovered[node] = true;
     if (!graph.adjacencyMap[node].isNullOrEmpty()) {
       for (next in graph.adjacencyMap[node]!!) {
@@ -245,8 +249,8 @@ class LongestPath(private val graph: Graph<Vector2D>) {
           dfs(next, depth + 1);
         }
       }
+      sort.push(node);
     }
-    sort.push(node);
   }
 
 }
