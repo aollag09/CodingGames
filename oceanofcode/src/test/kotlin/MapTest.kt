@@ -43,6 +43,17 @@ class MapTest {
       map.parse("........xx.....", 14);
       return map;
     }
+
+    fun generateSmallEmptyMapTest(): Map {
+      val map: Map = Map(5, 5);
+      map.parse(".....", 0);
+      map.parse(".....", 1);
+      map.parse(".....", 2);
+      map.parse(".....", 3);
+      map.parse(".....", 4);
+
+      return map;
+    }
   }
 
   @Test

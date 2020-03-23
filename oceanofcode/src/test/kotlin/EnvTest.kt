@@ -8,6 +8,10 @@ class EnvTest {
     fun generateEnvTest2(): Env {
       return Env(MapTest.generateMapTest2());
     }
+
+    fun generateEnvSmallEmptyTest(): Env{
+      return Env(MapTest.generateSmallEmptyMapTest());
+    }
   }
 
 }

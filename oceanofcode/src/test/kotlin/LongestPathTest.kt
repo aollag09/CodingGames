@@ -1,3 +1,4 @@
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class LongestPathTest {
@@ -14,6 +15,14 @@ internal class LongestPathTest {
     val graph = EnvTest.generateEnvTest2().moveGraph();
     val longestPath: LongestPath = LongestPath(graph);
     val path = longestPath.solve(Vector2D());
+  }
+
+  @Test
+  fun small_empty_env_test_path(){
+    val graph = EnvTest.generateEnvSmallEmptyTest().moveGraph();
+    val longestPath: LongestPath = LongestPath(graph);
+    val path = longestPath.solve(Vector2D());
+    Assertions.assertEquals(24, path.size)
   }
 
 

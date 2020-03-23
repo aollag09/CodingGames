@@ -67,7 +67,7 @@ class Env(val map: Map) {
 
   /** Create a graph of next movable positions regarding environment */
   fun moveGraph(start: Vector2D = submarine.position): Graph<Vector2D> {
-    val graph: Graph<Vector2D> = Graph(true)
+    val graph: Graph<Vector2D> = Graph(false)
     val visited: MutableSet<Vector2D> = submarineTrail.toMutableSet()
     val toVisit: MutableList<Vector2D> = mutableListOf()
     toVisit.add(start)
@@ -312,7 +312,7 @@ class LongestPath(private val graph: Graph<Vector2D>) {
   }
 
   private fun longestPath(father: Vector2D, node: Vector2D, sum: Int) {
-    if (!discovered.containsKey(node) || discovered[node] == false) {
+    if (discovered[node] == false) {
       discovered[node] = true
 
       if (node != father) {
