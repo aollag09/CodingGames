@@ -27,7 +27,7 @@ internal class AggressiveStrategyTest {
     env.opTracker.testPrintMap(false)
 
     env.submarine.position = Vector2D(1, 3)
-    env.submarine.torpedoCoolDown = 3;
+    env.submarine.torpedoCoolDown = 0;
 
     val strategy = AggressiveStrategy(env.opTracker);
     val order = strategy.next(env.submarine)

@@ -3,6 +3,7 @@
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
+import kotlin.random.Random
 
 fun main(args: Array<String>) {
 
@@ -26,7 +27,6 @@ fun main(args: Array<String>) {
 
   val start: Vector2D = env.start()
   println(start.getIX().toString() + " " + start.getIY().toString())
-
 
   // game loop
   while (true) {
@@ -99,16 +99,10 @@ class Env(val map: Map) {
   /** Choose the starting point */
   fun start(): Vector2D {
     val waters: Set<Vector2D> = map.getWater()
-    var min = 5
-    var start = Vector2D()
-    for (water in waters) {
-      val neigh = map.neigh(water).size
-      if (neigh < min) {
-        min = neigh
-        start = water
-      }
-    }
-    return start
+    val i = Random.nextInt(0, waters.size - 1)
+    val list = mutableListOf<Vector2D>()
+    list.addAll(waters)
+    return list[i];
   }
 
   fun register(order: Order) {
@@ -264,10 +258,10 @@ class Submarine {
   var id: Int = 0
   var position: Vector2D = Vector2D()
   var life: Int = 6
-  var torpedoCoolDown: Int = 0
-  var sonarCoolDown: Int = 0
-  var silenceCoolDown: Int = 0
-  var mineCoolDown: Int = 0
+  var torpedoCoolDown: Int = -1
+  var sonarCoolDown: Int = -1
+  var silenceCoolDown: Int = -1
+  var mineCoolDown: Int = -1
   var sonarResult: String = "NA" // Can be Y, N or NA
 
   /** List of orders of the submarine */
@@ -286,7 +280,7 @@ class Submarine {
   }
 
   fun isTorpedoReady(): Boolean {
-    return this.torpedoCoolDown >= TORPEDO_MAX_COOL_DOWN
+    return this.torpedoCoolDown == 0
   }
 }
 
@@ -557,74 +551,6 @@ class SilentStrategy(val tracker: SubmarineTracker) {
   }
 }
 
-class LongestPath(private val graph: Graph<Vector2D>) {
-
-  // Discovered node map
-  private val discovered: MutableMap<Vector2D, Boolean> = hashMapOf()
-
-  // Longest distance to reach the node
-  private val longestDistance: MutableMap<Vector2D, Int> = hashMapOf()
-
-  // Keep parent pointer
-  private val parents: MutableMap<Vector2D, Vector2D> = hashMapOf()
-
-  /** Return the longest path from input source in the graph */
-  fun solve(source: Vector2D): MutableList<Vector2D> {
-
-    // clear
-    for (node in this.graph.adjacencyMap.keys) {
-      longestDistance[node] = 0
-      discovered[node] = false
-    }
-
-    // Compute longest pathDirection
-    longestPath(source, source, 0)
-
-    // Found target of the longest path
-    var target = Vector2D()
-    var max: Int = -1
-    for (node in longestDistance.keys) {
-      val distance: Int = longestDistance[node]!!
-      if (distance > max) {
-        max = distance
-        target = node
-      }
-    }
-
-    // Build path
-    val path: MutableList<Vector2D> = mutableListOf()
-    var node: Vector2D = target
-
-    while (node != source) {
-      path.add(0, node)
-      node = parents[node]!!
-    }
-
-    return path
-
-  }
-
-  private fun longestPath(father: Vector2D, node: Vector2D, sum: Int) {
-    if (discovered[node] == false) {
-      discovered[node] = true
-
-      if (node != father) {
-        if (!parents.containsKey(node))
-          parents[node] = father
-        if (longestDistance[node]!! < sum)
-          longestDistance[node] = sum
-        else
-          parents[node] = father
-      }
-
-      if (graph.adjacencyMap.containsKey(node)) {
-        for (next in graph.adjacencyMap[node]!!)
-          longestPath(node, next, sum + 1)
-      }
-    }
-  }
-
-}
 
 class Graph<T>(private val bidirectional: Boolean) {
   val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
