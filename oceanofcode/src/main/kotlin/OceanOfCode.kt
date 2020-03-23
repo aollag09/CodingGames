@@ -1,3 +1,5 @@
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
@@ -15,19 +17,19 @@ fun main(args: Array<String>) {
   }
 
   // Create main.kotlin.Map
-  val map: Map = Map(width, height)
+  val map = Map(width, height)
   for (j in 0 until height)
     map.parse(input.nextLine(), j)
 
   // Initialise environment
-  val env: Env = Env(map)
+  val env = Env(map)
   env.submarine.id = myId
 
   val start: Vector2D = env.start()
   println(start.getIX().toString() + " " + start.getIY().toString())
 
   val graph = env.moveGraph(start)
-  val longestPath: LongestPath = LongestPath(graph)
+  val longestPath = LongestPath(graph)
   var path: MutableList<Vector2D> = mutableListOf()
   val millis = measureTimeMillis {
     path = longestPath.solve(env.submarine.position)
@@ -49,15 +51,13 @@ fun main(args: Array<String>) {
     if (input.hasNextLine()) {
       input.nextLine()
     }
-    val opponentOrders = input.nextLine()
-    val direction = env.submarine.position.direction(path.removeAt(0))
+    env.opponent.orders.addAll(Order.parse(input.nextLine()))
 
+    val direction = env.submarine.position.direction(path.removeAt(0))
     println("MOVE $direction TORPEDO")
 
     env.submarineTrail.add(env.submarine.position)
   }
-
-
 }
 
 class Env(val map: Map) {
@@ -88,8 +88,8 @@ class Env(val map: Map) {
   /** Choose the starting point */
   fun start(): Vector2D {
     val waters: Set<Vector2D> = map.getWater()
-    var min: Int = 5
-    var start: Vector2D = Vector2D()
+    var min = 5
+    var start = Vector2D()
     for (water in waters) {
       val neigh = map.neigh(water).size
       if (neigh < min) {
@@ -127,7 +127,7 @@ class Map(width: Int, height: Int) {
     val y: Int = section / 3
     for (i in x - 1 until x + 5) {
       for (j in y - 1 until y + 5) {
-        val pos: Vector2D = Vector2D(i, j)
+        val pos = Vector2D(i, j)
         if (isWater(pos))
           water.add(pos)
       }
@@ -159,7 +159,7 @@ class Map(width: Int, height: Int) {
 
 }
 
-class Submarine() {
+class Submarine {
   var id: Int = 0
   var position: Vector2D = Vector2D()
   var life: Int = 6
@@ -173,6 +173,7 @@ class Submarine() {
 
 class Opponent {
   var life: Int = 6
+  val orders: MutableList<Order> = mutableListOf()
 }
 
 abstract class Order {
@@ -185,12 +186,18 @@ abstract class Order {
       return out
     }
 
-    private fun parseOrder(order: String): Order {
+    fun parseOrder(order: String): Order {
       order.trim()
       if (order == "SURFACE")
         return Surface()
-      if (order.contains("MOVE"))
-        return Move(Direction.valueOf(order.substringAfter(" ")))
+      if (order.contains("SURFACE")) {
+        val sector = order.substringAfterLast(" ")
+        return SurfaceSector(sector.toInt())
+      }
+      if (order.contains("MOVE")) {
+        val direction = order.substringAfterLast(" ")
+        return Move(Direction.valueOf(direction))
+      }
       if (order == "TORPEDO")
         return LoadTorpedo()
       return Empty()
@@ -202,7 +209,6 @@ abstract class Order {
 
 enum class Direction {
   N, S, E, W, NA
-
 }
 
 class Move(private val direction: Direction) : Order() {
@@ -215,6 +221,13 @@ class Surface : Order() {
   override fun toOrderString(): String {
     return "SURFACE"
   }
+}
+
+class SurfaceSector(private val sector: Int) : Order() {
+  override fun toOrderString(): String {
+    return "SURFACE $sector"
+  }
+
 }
 
 class Torpedo(private val target: Vector2D) : Order() {
@@ -236,8 +249,7 @@ class Empty : Order() {
 
 }
 
-
-class SubmarineTracker(private val map: Map) {
+class SubmarineTracker(map: Map) {
 
   /** Starting candidate positions */
   private val start: Set<Vector2D> = map.getWater()
@@ -276,10 +288,10 @@ class LongestPath(private val graph: Graph<Vector2D>) {
     longestPath(source, source, 0)
 
     // Found target of the longest path
-    var target: Vector2D = Vector2D()
+    var target = Vector2D()
     var max: Int = -1
     for (node in longestDistance.keys) {
-      var distance: Int = longestDistance[node]!!
+      val distance: Int = longestDistance[node]!!
       if (distance > max) {
         max = distance
         target = node
@@ -318,7 +330,6 @@ class LongestPath(private val graph: Graph<Vector2D>) {
   }
 
 }
-
 
 class Graph<T>(private val bidirectional: Boolean) {
   val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
@@ -367,7 +378,7 @@ class Vector2D(var x: Double, var y: Double) {
   }
 
   fun length(): Double {
-    return sqrt((x * x + y * y).toDouble())
+    return sqrt((x * x + y * y))
   }
 
   fun direction(v: Vector2D): Direction {
@@ -408,7 +419,7 @@ class Vector2D(var x: Double, var y: Double) {
   fun distance(v: Vector2D): Double {
     val vx = v.x - this.x
     val vy = v.y - this.y
-    return sqrt((vx * vx + vy * vy).toDouble())
+    return sqrt((vx * vx + vy * vy))
   }
 
   fun getAngle(): Double {

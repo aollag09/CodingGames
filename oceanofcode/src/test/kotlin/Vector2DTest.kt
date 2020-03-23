@@ -24,7 +24,7 @@ internal class Vector2DTest {
 
   @Test
   fun testDirection(){
-    assertEquals("N", Vector2D( 1,1).direction( Vector2D(1, 0)))
-    assertEquals("E", Vector2D( 1,1).direction( Vector2D(2, 1)))
+    assertEquals(Direction.N, Vector2D( 1,1).direction( Vector2D(1, 0)))
+    assertEquals(Direction.E, Vector2D( 1,1).direction( Vector2D(2, 1)))
   }
 }
