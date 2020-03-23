@@ -3,7 +3,6 @@
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
-import kotlin.system.measureTimeMillis
 
 fun main(args: Array<String>) {
 
@@ -28,14 +27,6 @@ fun main(args: Array<String>) {
   val start: Vector2D = env.start()
   println(start.getIX().toString() + " " + start.getIY().toString())
 
-  val graph = env.moveGraph(start)
-  val longestPath = LongestPath(graph)
-  var path: MutableList<Vector2D> = mutableListOf()
-  val millis = measureTimeMillis {
-    path = longestPath.solve(env.submarine.position)
-  }
-  System.err.println("Solve longest path in $millis ms")
-  System.err.println("Path size : " + path.size)
 
   // game loop
   while (true) {
@@ -52,25 +43,32 @@ fun main(args: Array<String>) {
       input.nextLine()
     }
     env.opponent.orders = Order.parse(input.nextLine())
-    env.opponent.orders.forEach { env.tracker.update(it) }
-    env.tracker.testPrintMap(true);
+    env.opponent.orders.forEach { env.opTracker.update(it) }
+    env.opTracker.testPrintMap(true)
 
-    val direction = env.submarine.position.direction(path.removeAt(0))
-    println("MOVE $direction TORPEDO")
+    // Compute next action
+    val strategy = SilentStrategy(env.myTracker)
+    val order = strategy.next(env.submarine.position, env.submarine.trail)
+    println(order.toOrderString())
 
+    // Register action
+    env.myTracker.update(order)
     env.submarine.trail.add(env.submarine.position)
   }
 }
 
 class Env(val map: Map) {
   /** My submarine */
-  val submarine: Submarine = Submarine()
+  val submarine = Submarine()
+
+  /** My submarine tracker */
+  val myTracker = SubmarineTracker(map)
 
   /** Opponent submarine */
-  val opponent: Opponent = Opponent()
+  val opponent = Opponent()
 
   /** Opponent submarine tracker */
-  val tracker: SubmarineTracker = SubmarineTracker(map)
+  val opTracker = SubmarineTracker(map)
 
   /** Create a graph of next movable positions regarding environment */
   fun moveGraph(start: Vector2D = submarine.position): Graph<Vector2D> {
@@ -131,15 +129,15 @@ class Map(width: Int, height: Int) {
       throw RuntimeException("Section should be between 1 and 9")
     val water: MutableSet<Vector2D> = HashSet()
 
-    var x: Int = 0
-    var y: Int = 0
+    var x = 0
+    var y = 0
     when {
-      (section == 2 || section == 5 || section == 8) -> x = 5;
-      (section == 3 || section == 6 || section == 9) -> x = 10;
+      (section == 2 || section == 5 || section == 8) -> x = 5
+      (section == 3 || section == 6 || section == 9) -> x = 10
     }
-    when{
-      (section == 4 || section == 5 || section == 6) -> y = 5;
-      (section == 7 || section == 8 || section == 9) -> y = 10;
+    when {
+      (section == 4 || section == 5 || section == 6) -> y = 5
+      (section == 7 || section == 8 || section == 9) -> y = 10
     }
 
     for (i in x until x + 5) {
@@ -271,26 +269,49 @@ class Empty : Order() {
 class SubmarineTracker(val map: Map) {
 
   /** Starting candidate positions */
-  val candidates: MutableSet<Vector2D> = mutableSetOf();
+  val candidates = mutableSetOf<Vector2D>()
 
   /** Outdated during the current turn */
-  val outdated: MutableSet<Vector2D> = mutableSetOf();
+  val outdated = mutableSetOf<Vector2D>()
 
   /** Tail of all move actions */
-  private val trail: MutableList<Direction> = mutableListOf()
+  private val trail = mutableListOf<Direction>()
 
   init {
     candidates.addAll(map.getWater())
   }
 
   fun update(order: Order) {
-    outdated.clear();
+    outdated.clear()
     if (order is Move)
-      updateMove(order as Move)
+      updateMove(order)
     if (order is SurfaceSector)
-      updateSurface(order as SurfaceSector)
+      updateSurface(order)
     // Remove outdated
-    candidates.removeAll(outdated);
+    candidates.removeAll(outdated)
+  }
+
+  fun targets(): List<Vector2D> {
+    val targets = mutableListOf<Vector2D>()
+    for (candidate in candidates) {
+      val pos = Vector2D(candidate)
+      for (direction in trail)
+        pos.apply(direction)
+      targets.add(pos)
+    }
+    return targets
+  }
+
+  /** Evaluate next move to known how many outdated position will be created */
+  fun evaluate(direction: Direction): Int {
+    var evaluation = 0
+    for (target in targets()) {
+      val fake = target.clone()
+      fake.apply(direction)
+      if (!map.isWater(fake))
+        evaluation++
+    }
+    return evaluation
   }
 
   private fun updateMove(order: Move) {
@@ -299,10 +320,10 @@ class SubmarineTracker(val map: Map) {
       // Check of current candidate is still a valid option
       val snake = Vector2D(candidate)
       for (direction in trail) {
-        snake.apply(direction);
+        snake.apply(direction)
         if (!map.isWater(snake)) {
-          outdated.add(candidate);
-          break;
+          outdated.add(candidate)
+          break
         }
       }
     }
@@ -310,7 +331,7 @@ class SubmarineTracker(val map: Map) {
 
   private fun updateSurface(order: SurfaceSector) {
     trail.clear()
-    val sections = map.getWaterSection(order.sector);
+    val sections = map.getWaterSection(order.sector)
     for (section in sections) {
       if (!candidates.contains(section))
         candidates.add(section)
@@ -325,15 +346,17 @@ class SubmarineTracker(val map: Map) {
       System.err.println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
     else
       println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
+
+    val targets = targets()
     for (y in 0 until map.size.getIY()) {
-      var line: String = "";
+      var line = ""
       for (x in 0 until map.size.getIX()) {
         line += when {
           map.isIsland(Vector2D(x, y)) -> "x"
-          candidates.contains(Vector2D(x, y)) -> "o"
+          targets.contains(Vector2D(x, y)) -> "o"
           else -> "."
         }
-        line += "\t"
+        line += "  "
       }
       if (prod)
         System.err.println(line)
@@ -344,6 +367,25 @@ class SubmarineTracker(val map: Map) {
       System.err.println("")
     else
       println("")
+  }
+}
+
+class SilentStrategy(val tracker: SubmarineTracker) {
+
+  /** Compute the most silent next move */
+  fun next(from: Vector2D, trail: MutableSet<Vector2D> = mutableSetOf()): Move {
+    var best = Vector2D()
+    var silence = Int.MAX_VALUE
+    for (neigh in tracker.map.neigh(from)) {
+      if (!trail.contains(neigh)) {
+        val evaluation = tracker.evaluate(from.direction(neigh))
+        if (evaluation < silence) {
+          silence = evaluation
+          best = neigh
+        }
+      }
+    }
+    return Move(from.direction(best))
   }
 }
 
