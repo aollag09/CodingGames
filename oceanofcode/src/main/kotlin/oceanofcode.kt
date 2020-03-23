@@ -1,6 +1,7 @@
 import java.util.*
 import kotlin.collections.HashSet
 import kotlin.math.*
+import kotlin.system.measureTimeMillis
 
 fun main(args: Array<String>) {
 
@@ -22,10 +23,18 @@ fun main(args: Array<String>) {
   val env: Env = Env(map);
   env.submarine.id = myId;
 
-  // Write an action using println()
-  // To debug: System.err.println("Debug messages...");
+  val start: Vector2D = env.start();
+  println(start.getIX().toString() + " " + start.getIY().toString())
 
-  println("0 0")
+  val graph = env.moveGraph(start);
+  val longestPath: LongestPath = LongestPath(graph);
+  var path: MutableList<Vector2D> = mutableListOf();
+  val millis = measureTimeMillis {
+    path = longestPath.solve(env.submarine.position);
+  }
+  System.err.println("Solve longest path in $millis ms")
+  System.err.println("Path size : " + path.size)
+
 
   // game loop
   while (true) {
@@ -42,12 +51,7 @@ fun main(args: Array<String>) {
       input.nextLine()
     }
     val opponentOrders = input.nextLine()
-    System.err.println(opponentOrders);
-
-    val graph = env.moveGraph();
-    val longestPath = LongestPath(graph);
-    val path: MutableList<Vector2D> = longestPath.solve(env.submarine.position);
-    val direction = env.submarine.position.direction(path[0])
+    val direction = env.submarine.position.direction(path.removeAt(0))
 
     println("MOVE $direction TORPEDO")
 
@@ -79,8 +83,22 @@ class Env(val map: Map) {
         visited.add(next);
       }
     }
-    println(graph.toString())
     return graph;
+  }
+
+  /** Choose the starting point */
+  fun start(): Vector2D {
+    var waters: Set<Vector2D> = map.getWater();
+    var min: Int = 5;
+    var start: Vector2D = Vector2D();
+    for (water in waters) {
+      var neigh = map.neigh(water).size;
+      if (neigh < min) {
+        min = neigh;
+        start = water;
+      }
+    }
+    return start;
   }
 }
 
@@ -115,6 +133,15 @@ class Map(width: Int, height: Int) {
           water.add(pos);
       }
     }
+    return water;
+  }
+
+  fun getWater(): Set<Vector2D> {
+    val water: MutableSet<Vector2D> = mutableSetOf()
+    for (x in 0 until size.getIX())
+      for (y in 0 until size.getIY())
+        if (isWater(Vector2D(x, y)))
+          water.add(Vector2D(x, y))
     return water;
   }
 
