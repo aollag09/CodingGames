@@ -4,6 +4,10 @@ class EnvTest {
     fun generateEnvTest1(): Env {
       return Env(MapTest.generateMapTest1());
     }
+
+    fun generateEnvTest2(): Env {
+      return Env(MapTest.generateMapTest2());
+    }
   }
 
 }

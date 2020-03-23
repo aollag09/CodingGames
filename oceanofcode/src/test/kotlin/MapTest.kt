@@ -23,6 +23,26 @@ class MapTest {
       map.parse("...............", 14);
       return map;
     }
+
+    fun generateMapTest2(): Map {
+      val map: Map = Map(15, 15);
+      map.parse("xx.............", 0);
+      map.parse("xx.............", 1);
+      map.parse("xx.............", 2);
+      map.parse("...............", 3);
+      map.parse(".....xx.xx.....", 4);
+      map.parse(".....xx.xx.xxx.", 5);
+      map.parse("...........xxx.", 6);
+      map.parse("xxxx...........", 7);
+      map.parse("xxxx...........", 8);
+      map.parse(".xx............", 9);
+      map.parse("...............", 10);
+      map.parse("xxx.xxx........", 11);
+      map.parse("xxx.xxx........", 12);
+      map.parse(".xx.xxx.xx.....", 13);
+      map.parse("........xx.....", 14);
+      return map;
+    }
   }
 
   @Test

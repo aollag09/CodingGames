@@ -257,8 +257,8 @@ class SubmarineTracker(map: Map) {
   /** Tail of all move actions */
   private val trail: MutableList<Direction> = mutableListOf()
 
-  fun update(move: Direction) {
-    trail.add(move)
+  fun update(order: Order) {
+
   }
 
 }
@@ -324,8 +324,10 @@ class LongestPath(private val graph: Graph<Vector2D>) {
           parents[node] = father
       }
 
-      for (next in graph.adjacencyMap[node]!!)
-        longestPath(node, next, sum + 1)
+      if (graph.adjacencyMap.containsKey(node)) {
+        for (next in graph.adjacencyMap[node]!!)
+          longestPath(node, next, sum + 1)
+      }
     }
   }
 
