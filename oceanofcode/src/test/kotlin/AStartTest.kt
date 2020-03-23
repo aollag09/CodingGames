@@ -25,7 +25,7 @@ class AStartTest {
 
   @Test
   fun impossible_path() {
-    val path = MapTest.generateSmallMapTest().path(Vector2D(), Vector2D(0, 3), listOf(Vector2D(2, 2)));
+    val path = MapTest.generateSmallMapTest().path(Vector2D(), Vector2D(0, 3), setOf(Vector2D(2, 2)));
     assertNull(path)
   }
 

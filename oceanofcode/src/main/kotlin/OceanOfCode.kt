@@ -1,4 +1,4 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate", "LocalVariableName")
 
 import java.util.*
 import kotlin.collections.HashSet
@@ -47,9 +47,16 @@ fun main(args: Array<String>) {
     env.opTracker.testPrintMap(true)
 
     // Compute next action
-    val strategy = SilentStrategy(env.myTracker)
-    val order = strategy.next(env.submarine)
-    println(order.toOrderString())
+    val order =
+        if (env.opTracker.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+          AggressiveStrategy(env.opTracker).next(env.submarine)
+        } else {
+          SilentStrategy(env.myTracker).next(env.submarine)
+        }
+    if (order is Move)
+      println(order.toOrderString() + " TORPEDO")
+    else
+      println(order.toOrderString())
 
     // Register action
     env.register(order)
@@ -106,7 +113,7 @@ class Env(val map: Map) {
 
   fun register(order: Order) {
     myTracker.update(order)
-    submarine.orders.add(order);
+    submarine.orders.add(order)
     if (order is Move)
       submarine.trail.add(submarine.position)
   }
@@ -177,8 +184,20 @@ class Map(width: Int, height: Int) {
     return neigh
   }
 
+  fun neighDiagonal(pos: Vector2D): Set<Vector2D> {
+    val neigh: MutableSet<Vector2D> = mutableSetOf()
+    for (dx in -1..1 step 1)
+      for (dy in -1..1 step 1)
+        if (dx != 0 || dy != 0)
+          if (pos.x + dx >= 0 && pos.x + dx < this.size.x)
+            if (pos.y + dy >= 0 && pos.y + dy < this.size.y)
+              if (isWater(Vector2D(pos.x + dx, pos.y + dy)))
+                neigh.add(Vector2D(pos.x + dx, pos.y + dy))
+    return neigh
+  }
+
   /** A* to compute the path between from vector & to vector in the map with possible forbidden list */
-  fun path(from: Vector2D, to: Vector2D, forbidden: List<Vector2D> = listOf()): List<Vector2D>? {
+  fun path(from: Vector2D, to: Vector2D, forbidden: Set<Vector2D> = setOf()): List<Vector2D>? {
     val parents = mutableMapOf<Vector2D, Vector2D>()
 
     // Ordered queue
@@ -188,26 +207,27 @@ class Map(width: Int, height: Int) {
     // init g & f score to infinity
     val g = mutableMapOf<Vector2D, Int>()
     for (v in getWater())
-      g[v] = Int.MAX_VALUE;
-    g[from] = 0;
+      g[v] = Int.MAX_VALUE
+    g[from] = 0
 
     while (open.isNotEmpty()) {
-      val current = open.poll();
+      val current = open.poll()
 
       // Arrived to target
       if (current == to)
-        return buildPath(parents, to, from);
+        return buildPath(parents, to, from)
 
       // Loop on neighbors
       for (neighbor in neigh(current)) {
         if (!forbidden.contains(current)) {
 
-          val score = g[current]!!.plus(1);
+          // Compute current score
+          val score = g[current]!!.plus(1)
           if (score < g[neighbor]!!) {
 
             // New best path
-            parents[neighbor] = current;
-            g[neighbor] = score;
+            parents[neighbor] = current
+            g[neighbor] = score
             if (!open.contains(neighbor))
               open.add(neighbor)
           }
@@ -217,18 +237,18 @@ class Map(width: Int, height: Int) {
     }
 
     // no path has been found :(
-    return null;
+    return null
   }
 
   private fun buildPath(parents: kotlin.collections.Map<Vector2D, Vector2D>, to: Vector2D, from: Vector2D): List<Vector2D> {
     val path = mutableListOf<Vector2D>()
-    var current = to;
+    var current = to
     while (current != from) {
-      path.add(0, current);
-      current = parents[current] ?: error("Current vector doesn't have parent $current");
+      path.add(0, current)
+      current = parents[current] ?: error("Current vector doesn't have parent $current")
     }
     path.add(0, from)
-    return path;
+    return path
   }
 
 
@@ -237,7 +257,8 @@ class Map(width: Int, height: Int) {
 class Submarine {
 
   companion object {
-    const val TORPEDO_MAX_COOL_DOWN = 3;
+    const val TORPEDO_RANGE = 4
+    private const val TORPEDO_MAX_COOL_DOWN = 3
   }
 
   var id: Int = 0
@@ -261,11 +282,11 @@ class Submarine {
     for (n in map.neigh(position))
       if (!trail.contains(n))
         neigh.add(n)
-    return neigh;
+    return neigh
   }
 
   fun isTorpedoReady(): Boolean {
-    return this.torpedoCoolDown >= Submarine.TORPEDO_MAX_COOL_DOWN;
+    return this.torpedoCoolDown >= TORPEDO_MAX_COOL_DOWN
   }
 }
 
@@ -453,20 +474,69 @@ class SubmarineTracker(val map: Map) {
 
 class AggressiveStrategy(val opponent: SubmarineTracker) {
 
+  companion object {
+    const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 40
+  }
+
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
-    var best = Vector2D()
-    var order = Empty();
-    var aggressivity = Int.MIN_VALUE
-    var opponentPositions = opponent.targets();
-    for (neigh in submarine.neigh(opponent.map)) {
-      // can fire ?
-      if (submarine.isTorpedoReady()) {
+    // Compute distances of all targets
+    val distances = mutableMapOf<Vector2D, Int>()
+    for (target in opponent.targets()) {
+      val path = opponent.map.path(submarine.position, target, submarine.trail)
+      var distance = 0
+      if (path != null)
+        distance = path.size
+      distances[target] = distance
+    }
+    return attack(submarine, distances, opponent)
+  }
 
+  private fun attack(submarine: Submarine, distances: MutableMap<Vector2D, Int>, opponent: SubmarineTracker): Order {
+    var order: Order = Empty()
+
+    // Look for best target : showing the most information ...
+    var best = Double.MIN_VALUE
+    var bestTarget = Vector2D()
+    for ((target, distance) in distances) {
+      if (target == submarine.position)
+        continue;
+
+      // Count targets
+      var nbTarget = 1;
+      opponent.map.neighDiagonal(target).forEach { if ((distances.keys).contains(it)) nbTarget++ }
+
+      val FACTOR_NB_TARGET = 3
+      val FACTOR_DISTANCE = -1.0
+      val evaluation = FACTOR_NB_TARGET * nbTarget + FACTOR_DISTANCE * distance
+
+      if (evaluation > best) {
+        best = evaluation
+        bestTarget = target
       }
     }
-    return order;
+
+    // Fire ?
+    if (submarine.isTorpedoReady()) {
+      if (best > Double.MIN_VALUE && distances[bestTarget]!! < Submarine.TORPEDO_RANGE) {
+        System.err.println("Attack strategy Fire on $bestTarget")
+        order = Torpedo(bestTarget)
+      }
+    }
+
+    // Approach
+    if (order is Empty) {
+      val path = opponent.map.path(submarine.position, bestTarget)
+      if (path != null && path.size > 1) {
+        val direction = submarine.position.direction(path[1])
+        System.err.println("Attack strategy Move on $bestTarget with direction :$direction")
+        order = Move(direction)
+      }
+    }
+
+    return order
   }
+
 }
 
 class SilentStrategy(val tracker: SubmarineTracker) {
@@ -482,6 +552,7 @@ class SilentStrategy(val tracker: SubmarineTracker) {
         best = neigh
       }
     }
+    System.err.println("Silent strategy, move to $best")
     return Move(submarine.position.direction(best))
   }
 }
