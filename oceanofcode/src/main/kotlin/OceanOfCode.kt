@@ -177,6 +177,60 @@ class Map(width: Int, height: Int) {
     return neigh
   }
 
+  /** A* to compute the path between from vector & to vector in the map with possible forbidden list */
+  fun path(from: Vector2D, to: Vector2D, forbidden: List<Vector2D> = listOf()): List<Vector2D>? {
+    val parents = mutableMapOf<Vector2D, Vector2D>()
+
+    // Ordered queue
+    val open = PriorityQueue<Vector2D>(kotlin.Comparator { t1, t2 -> (t1.distance(to) - t2.distance(to)).toInt() })
+    open.add(from)
+
+    // init g & f score to infinity
+    val g = mutableMapOf<Vector2D, Int>()
+    for (v in getWater())
+      g[v] = Int.MAX_VALUE;
+    g[from] = 0;
+
+    while (open.isNotEmpty()) {
+      val current = open.poll();
+
+      // Arrived to target
+      if (current == to)
+        return buildPath(parents, to, from);
+
+      // Loop on neighbors
+      for (neighbor in neigh(current)) {
+        if (!forbidden.contains(current)) {
+
+          val score = g[current]!!.plus(1);
+          if (score < g[neighbor]!!) {
+
+            // New best path
+            parents[neighbor] = current;
+            g[neighbor] = score;
+            if (!open.contains(neighbor))
+              open.add(neighbor)
+          }
+        }
+      }
+
+    }
+
+    // no path has been found :(
+    return null;
+  }
+
+  private fun buildPath(parents: kotlin.collections.Map<Vector2D, Vector2D>, to: Vector2D, from: Vector2D): List<Vector2D> {
+    val path = mutableListOf<Vector2D>()
+    var current = to;
+    while (current != from) {
+      path.add(0, current);
+      current = parents[current] ?: error("Current vector doesn't have parent $current");
+    }
+    path.add(0, from)
+    return path;
+  }
+
 
 }
 

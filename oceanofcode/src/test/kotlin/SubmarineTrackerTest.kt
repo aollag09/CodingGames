@@ -1,80 +1,71 @@
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-internal class SubmarineTrackerTest{
+internal class SubmarineTrackerTest {
 
   @Test
-  fun test_small_empty_map(){
-    val tracker = SubmarineTracker( MapTest.generateSmallEmptyMapTest());
-    assertEquals(25,tracker.candidates.size)
+  fun test_small_empty_map() {
+    val tracker = SubmarineTracker(MapTest.generateSmallEmptyMapTest());
+    assertEquals(25, tracker.candidates.size)
     tracker.update(Move(Direction.N));
-    assertEquals(5, tracker.outdated.size );
-    assertEquals(20,tracker.candidates.size)
+    assertEquals(5, tracker.outdated.size);
+    assertEquals(20, tracker.candidates.size)
   }
 
   @Test
-  fun test_small_empty_map_2_moves(){
-    val tracker = SubmarineTracker( MapTest.generateSmallEmptyMapTest());
+  fun test_small_empty_map_2_moves() {
+    val tracker = SubmarineTracker(MapTest.generateSmallEmptyMapTest());
     tracker.update(Move(Direction.N));
     tracker.update(Move(Direction.N));
-    assertEquals(15,tracker.candidates.size)
+    assertEquals(15, tracker.candidates.size)
   }
 
   @Test
-  fun test_small_map(){
-    val tracker = SubmarineTracker( MapTest.generateSmallMapTest());
+  fun test_small_map() {
+    val tracker = SubmarineTracker(MapTest.generateSmallMapTest());
     tracker.testPrintMap(false)
-    assertEquals(17,tracker.candidates.size)
+    assertEquals(17, tracker.candidates.size)
     tracker.update(Move(Direction.N));
     tracker.testPrintMap(false)
-    assertEquals(9, tracker.outdated.size )
-    assertEquals(8,tracker.candidates.size)
+    assertEquals(9, tracker.outdated.size)
+    assertEquals(8, tracker.candidates.size)
     tracker.update(Move(Direction.E));
-    assertEquals(4,tracker.candidates.size)
+    assertEquals(4, tracker.candidates.size)
     tracker.testPrintMap(false)
     tracker.update(Move(Direction.N));
     tracker.testPrintMap(false)
   }
 
   @Test
-  fun test_surface_map1(){
+  fun test_surface_map1() {
     val tracker = SubmarineTracker(MapTest.generateMapTest1());
     tracker.testPrintMap(false)
     tracker.update(SurfaceSector(1));
-    tracker.testPrintMap(false)
-    assertEquals(17,tracker.candidates.size)
+    assertEquals(17, tracker.candidates.size)
 
     tracker.update(SurfaceSector(2));
-    tracker.testPrintMap(false)
-    assertEquals(25,tracker.candidates.size)
+    assertEquals(25, tracker.candidates.size)
 
     tracker.update(SurfaceSector(3));
-    tracker.testPrintMap(false)
-    assertEquals(17,tracker.candidates.size)
+    assertEquals(17, tracker.candidates.size)
 
     tracker.update(SurfaceSector(4));
-    tracker.testPrintMap(false)
-    assertEquals(9,tracker.candidates.size)
+    assertEquals(9, tracker.candidates.size)
 
     tracker.update(SurfaceSector(5));
-    tracker.testPrintMap(false)
-    assertEquals(17,tracker.candidates.size)
+    assertEquals(17, tracker.candidates.size)
 
     tracker.update(SurfaceSector(6));
-    tracker.testPrintMap(false)
-    assertEquals(25,tracker.candidates.size)
+    assertEquals(25, tracker.candidates.size)
 
     tracker.update(SurfaceSector(7));
-    tracker.testPrintMap(false)
-    assertEquals(25,tracker.candidates.size)
+    assertEquals(25, tracker.candidates.size)
 
     tracker.update(SurfaceSector(8));
-    tracker.testPrintMap(false)
-    assertEquals(23,tracker.candidates.size)
+    assertEquals(23, tracker.candidates.size)
 
     tracker.update(SurfaceSector(9));
-    tracker.testPrintMap(false)
-    assertEquals(23,tracker.candidates.size)
+    assertEquals(23, tracker.candidates.size)
   }
 
 }
