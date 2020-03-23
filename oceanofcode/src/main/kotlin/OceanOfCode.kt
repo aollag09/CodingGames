@@ -48,12 +48,11 @@ fun main(args: Array<String>) {
 
     // Compute next action
     val strategy = SilentStrategy(env.myTracker)
-    val order = strategy.next(env.submarine.position, env.submarine.trail)
+    val order = strategy.next(env.submarine)
     println(order.toOrderString())
 
     // Register action
-    env.myTracker.update(order)
-    env.submarine.trail.add(env.submarine.position)
+    env.register(order)
   }
 }
 
@@ -103,6 +102,13 @@ class Env(val map: Map) {
       }
     }
     return start
+  }
+
+  fun register(order: Order) {
+    myTracker.update(order)
+    submarine.orders.add(order);
+    if (order is Move)
+      submarine.trail.add(submarine.position)
   }
 }
 
@@ -175,6 +181,11 @@ class Map(width: Int, height: Int) {
 }
 
 class Submarine {
+
+  companion object {
+    const val TORPEDO_MAX_COOL_DOWN = 3;
+  }
+
   var id: Int = 0
   var position: Vector2D = Vector2D()
   var life: Int = 6
@@ -184,8 +195,24 @@ class Submarine {
   var mineCoolDown: Int = 0
   var sonarResult: String = "NA" // Can be Y, N or NA
 
+  /** List of orders of the submarine */
+  val orders = mutableListOf<Order>()
+
   /** Trail of my submarine */
   val trail: MutableSet<Vector2D> = mutableSetOf()
+
+  /** Available neigh for next move*/
+  fun neigh(map: Map): List<Vector2D> {
+    val neigh = mutableListOf<Vector2D>()
+    for (n in map.neigh(position))
+      if (!trail.contains(n))
+        neigh.add(n)
+    return neigh;
+  }
+
+  fun isTorpedoReady(): Boolean {
+    return this.torpedoCoolDown >= Submarine.TORPEDO_MAX_COOL_DOWN;
+  }
 }
 
 class Opponent {
@@ -370,22 +397,38 @@ class SubmarineTracker(val map: Map) {
   }
 }
 
+class AggressiveStrategy(val opponent: SubmarineTracker) {
+
+  /** Compute the most aggressive next move*/
+  fun next(submarine: Submarine): Order {
+    var best = Vector2D()
+    var order = Empty();
+    var aggressivity = Int.MIN_VALUE
+    var opponentPositions = opponent.targets();
+    for (neigh in submarine.neigh(opponent.map)) {
+      // can fire ?
+      if (submarine.isTorpedoReady()) {
+
+      }
+    }
+    return order;
+  }
+}
+
 class SilentStrategy(val tracker: SubmarineTracker) {
 
   /** Compute the most silent next move */
-  fun next(from: Vector2D, trail: MutableSet<Vector2D> = mutableSetOf()): Move {
+  fun next(submarine: Submarine): Order {
     var best = Vector2D()
     var silence = Int.MAX_VALUE
-    for (neigh in tracker.map.neigh(from)) {
-      if (!trail.contains(neigh)) {
-        val evaluation = tracker.evaluate(from.direction(neigh))
-        if (evaluation < silence) {
-          silence = evaluation
-          best = neigh
-        }
+    for (neigh in submarine.neigh(tracker.map)) {
+      val evaluation = tracker.evaluate(submarine.position.direction(neigh))
+      if (evaluation < silence) {
+        silence = evaluation
+        best = neigh
       }
     }
-    return Move(from.direction(best))
+    return Move(submarine.position.direction(best))
   }
 }
 
@@ -399,7 +442,6 @@ class LongestPath(private val graph: Graph<Vector2D>) {
 
   // Keep parent pointer
   private val parents: MutableMap<Vector2D, Vector2D> = hashMapOf()
-
 
   /** Return the longest path from input source in the graph */
   fun solve(source: Vector2D): MutableList<Vector2D> {
