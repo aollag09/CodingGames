@@ -102,7 +102,7 @@ class Env(val map: Map) {
 }
 
 class Map(width: Int, height: Int) {
-  private val size: Vector2D = Vector2D(width, height)
+  val size: Vector2D = Vector2D(width, height)
   private val islands: MutableSet<Vector2D> = HashSet()
 
   fun isIsland(pos: Vector2D): Boolean {
@@ -211,7 +211,7 @@ enum class Direction {
   N, S, E, W, NA
 }
 
-class Move(private val direction: Direction) : Order() {
+class Move(val direction: Direction) : Order() {
   override fun toOrderString(): String {
     return "MOVE " + direction.name
   }
@@ -223,7 +223,7 @@ class Surface : Order() {
   }
 }
 
-class SurfaceSector(private val sector: Int) : Order() {
+class SurfaceSector(val sector: Int) : Order() {
   override fun toOrderString(): String {
     return "SURFACE $sector"
   }
@@ -249,18 +249,75 @@ class Empty : Order() {
 
 }
 
-class SubmarineTracker(map: Map) {
+class SubmarineTracker(val map: Map) {
 
   /** Starting candidate positions */
-  private val start: Set<Vector2D> = map.getWater()
+  val candidates: MutableSet<Vector2D> = mutableSetOf();
+
+  /** Outdated during the current turn */
+  val outdated: MutableSet<Vector2D> = mutableSetOf();
 
   /** Tail of all move actions */
   private val trail: MutableList<Direction> = mutableListOf()
 
-  fun update(order: Order) {
-
+  init {
+    candidates.addAll(map.getWater())
   }
 
+  fun update(order: Order) {
+    outdated.clear();
+    if (order is Move)
+      updateMove(order as Move)
+    if (order is SurfaceSector)
+      updateSurface(order as SurfaceSector)
+    // Remove outdated
+    candidates.removeAll(outdated);
+  }
+
+  private fun updateMove(order: Move) {
+    trail.add(order.direction)
+    for (candidate in candidates) {
+      // Check of current candidate is still a valid option
+      val snake = Vector2D(candidate)
+      for (direction in trail) {
+        snake.apply(direction);
+        if (!map.isWater(snake)) {
+          outdated.add(candidate);
+          break;
+        }
+      }
+    }
+  }
+
+  private fun updateSurface(order: SurfaceSector) {
+    trail.clear()
+    val section = map.getWaterSection(order.sector);
+    for (candidate in candidates)
+      if (!section.contains(candidate))
+        outdated.add(candidate)
+  }
+
+  fun testPrintMap(prod: Boolean) {
+    for (y in 0 until map.size.getIY()) {
+      var line: String = "";
+      for (x in 0 until map.size.getIX()) {
+        line += when {
+          map.isIsland(Vector2D(x, y)) -> "x"
+          candidates.contains(Vector2D(x, y)) -> "o"
+          else -> "."
+        }
+        line += "\t"
+      }
+      if (prod)
+        System.err.println(line)
+      else
+        println(line)
+    }
+    if (prod)
+      System.err.println("")
+    else
+      println("")
+  }
 }
 
 class LongestPath(private val graph: Graph<Vector2D>) {

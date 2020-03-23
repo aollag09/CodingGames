@@ -54,6 +54,17 @@ class MapTest {
 
       return map;
     }
+
+    fun generateSmallMapTest(): Map {
+      val map: Map = Map(5, 5);
+      map.parse(".....", 0);
+      map.parse("xxx..", 1);
+      map.parse("xx...", 2);
+      map.parse("...x.", 3);
+      map.parse("x...x.", 4);
+
+      return map;
+    }
   }
 
   @Test
