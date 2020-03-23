@@ -51,24 +51,31 @@ fun main(args: Array<String>) {
     if (input.hasNextLine()) {
       input.nextLine()
     }
-    env.opponent.orders.addAll(Order.parse(input.nextLine()))
+    env.opponent.orders = Order.parse(input.nextLine())
+    env.opponent.orders.forEach { env.tracker.update(it) }
+    env.tracker.testPrintMap(true);
 
     val direction = env.submarine.position.direction(path.removeAt(0))
     println("MOVE $direction TORPEDO")
 
-    env.submarineTrail.add(env.submarine.position)
+    env.submarine.trail.add(env.submarine.position)
   }
 }
 
 class Env(val map: Map) {
+  /** My submarine */
   val submarine: Submarine = Submarine()
+
+  /** Opponent submarine */
   val opponent: Opponent = Opponent()
-  val submarineTrail: MutableSet<Vector2D> = mutableSetOf()
+
+  /** Opponent submarine tracker */
+  val tracker: SubmarineTracker = SubmarineTracker(map)
 
   /** Create a graph of next movable positions regarding environment */
   fun moveGraph(start: Vector2D = submarine.position): Graph<Vector2D> {
     val graph: Graph<Vector2D> = Graph(false)
-    val visited: MutableSet<Vector2D> = submarineTrail.toMutableSet()
+    val visited: MutableSet<Vector2D> = submarine.trail.toMutableSet()
     val toVisit: MutableList<Vector2D> = mutableListOf()
     toVisit.add(start)
     while (toVisit.isNotEmpty()) {
@@ -123,10 +130,20 @@ class Map(width: Int, height: Int) {
     if (section < 1 || section > 9)
       throw RuntimeException("Section should be between 1 and 9")
     val water: MutableSet<Vector2D> = HashSet()
-    val x: Int = section % 3
-    val y: Int = section / 3
-    for (i in x - 1 until x + 5) {
-      for (j in y - 1 until y + 5) {
+
+    var x: Int = 0
+    var y: Int = 0
+    when {
+      (section == 2 || section == 5 || section == 8) -> x = 5;
+      (section == 3 || section == 6 || section == 9) -> x = 10;
+    }
+    when{
+      (section == 4 || section == 5 || section == 6) -> y = 5;
+      (section == 7 || section == 8 || section == 9) -> y = 10;
+    }
+
+    for (i in x until x + 5) {
+      for (j in y until y + 5) {
         val pos = Vector2D(i, j)
         if (isWater(pos))
           water.add(pos)
@@ -169,11 +186,13 @@ class Submarine {
   var mineCoolDown: Int = 0
   var sonarResult: String = "NA" // Can be Y, N or NA
 
+  /** Trail of my submarine */
+  val trail: MutableSet<Vector2D> = mutableSetOf()
 }
 
 class Opponent {
   var life: Int = 6
-  val orders: MutableList<Order> = mutableListOf()
+  var orders: List<Order> = listOf()
 }
 
 abstract class Order {
@@ -291,13 +310,21 @@ class SubmarineTracker(val map: Map) {
 
   private fun updateSurface(order: SurfaceSector) {
     trail.clear()
-    val section = map.getWaterSection(order.sector);
+    val sections = map.getWaterSection(order.sector);
+    for (section in sections) {
+      if (!candidates.contains(section))
+        candidates.add(section)
+    }
     for (candidate in candidates)
-      if (!section.contains(candidate))
+      if (!sections.contains(candidate))
         outdated.add(candidate)
   }
 
   fun testPrintMap(prod: Boolean) {
+    if (prod)
+      System.err.println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
+    else
+      println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
     for (y in 0 until map.size.getIY()) {
       var line: String = "";
       for (x in 0 until map.size.getIX()) {

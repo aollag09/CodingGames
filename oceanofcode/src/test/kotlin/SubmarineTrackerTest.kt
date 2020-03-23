@@ -36,4 +36,45 @@ internal class SubmarineTrackerTest{
     tracker.testPrintMap(false)
   }
 
+  @Test
+  fun test_surface_map1(){
+    val tracker = SubmarineTracker(MapTest.generateMapTest1());
+    tracker.testPrintMap(false)
+    tracker.update(SurfaceSector(1));
+    tracker.testPrintMap(false)
+    assertEquals(17,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(2));
+    tracker.testPrintMap(false)
+    assertEquals(25,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(3));
+    tracker.testPrintMap(false)
+    assertEquals(17,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(4));
+    tracker.testPrintMap(false)
+    assertEquals(9,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(5));
+    tracker.testPrintMap(false)
+    assertEquals(17,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(6));
+    tracker.testPrintMap(false)
+    assertEquals(25,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(7));
+    tracker.testPrintMap(false)
+    assertEquals(25,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(8));
+    tracker.testPrintMap(false)
+    assertEquals(23,tracker.candidates.size)
+
+    tracker.update(SurfaceSector(9));
+    tracker.testPrintMap(false)
+    assertEquals(23,tracker.candidates.size)
+  }
+
 }
