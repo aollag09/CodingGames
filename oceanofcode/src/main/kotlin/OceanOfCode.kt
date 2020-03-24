@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
     env.trackerKasakta.update(env.kasakta.orders.get(env.turn))
 
     // Compute next action
-    var order: Order = Empty();
+    var order: Order;
     order = TrapStrategy(env.map).next(env.terrible)
     if (order is Empty)
       order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
@@ -205,6 +205,37 @@ class Map(width: Int, height: Int) {
     return neigh
   }
 
+
+  /** List position in around target */
+  fun torpedoRange(target: Vector2D): Set<Vector2D> {
+    val range = mutableSetOf<Vector2D>()
+    val open = PriorityQueue<Vector2D>(kotlin.Comparator
+    { t1, t2 -> (t1.distance(target) - t2.distance(target)).toInt() })
+    val dist = mutableMapOf<Vector2D, Int>()
+    dist[target] = 0
+    open.add(target)
+    while (open.isNotEmpty()) {
+      val current = open.poll()
+
+      // Is in the range
+      if (dist[current]!! <= 4) {
+        range.add(current)
+        for (neighbour in neigh(current)) {
+
+          // Update distance
+          if (dist[neighbour] != null)
+            dist[neighbour] = min(dist[neighbour]!!, dist[current]!! + 1)
+          else
+            dist[neighbour] = dist[current]!! + 1
+
+          if (!range.contains(neighbour) && !open.contains(neighbour))
+            open.add(neighbour)
+        }
+      }
+    }
+    return range
+  }
+
   /** A* to compute the path between from vector & to vector in the map with possible forbidden list */
   fun path(from: Vector2D, to: Vector2D, forbidden: Set<Vector2D> = setOf()): List<Vector2D>? {
     val parents = mutableMapOf<Vector2D, Vector2D>()
@@ -214,7 +245,8 @@ class Map(width: Int, height: Int) {
       return null
 
     // Ordered queue
-    val open = PriorityQueue<Vector2D>(kotlin.Comparator { t1, t2 -> (t1.distance(to) - t2.distance(to)).toInt() })
+    val open = PriorityQueue<Vector2D>(kotlin.Comparator
+    { t1, t2 -> (t1.distance(to) - t2.distance(to)).toInt() })
     open.add(from)
 
     // init g & f score to infinity
@@ -349,8 +381,8 @@ class Tracker(val map: Map) {
         updateMove(order)
       if (order is SurfaceSector)
         updateSurfaceSector(order)
-      if( order is Surface)
-        updateSurface(order)
+      if (order is Surface)
+        updateSurface()
     }
     // Remove outdated
     candidates.removeAll(outdated)
@@ -420,7 +452,7 @@ class Tracker(val map: Map) {
     }
   }
 
-  private fun updateSurface(order: Surface) {
+  private fun updateSurface() {
     trail.clear()
   }
 

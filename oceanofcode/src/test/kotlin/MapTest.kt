@@ -65,6 +65,26 @@ class MapTest {
 
       return map
     }
+
+    fun generateMapBigEmpty(): Map {
+      val map: Map = Map(15, 15)
+      map.parse("...............", 0)
+      map.parse("...............", 1)
+      map.parse("...............", 2)
+      map.parse("...............", 3)
+      map.parse("...............", 4)
+      map.parse("...............", 5)
+      map.parse("...............", 6)
+      map.parse("...............", 7)
+      map.parse("...............", 8)
+      map.parse("...............", 9)
+      map.parse("...............", 10)
+      map.parse("...............", 11)
+      map.parse("...............", 12)
+      map.parse("...............", 13)
+      map.parse("...............", 14)
+      return map
+    }
   }
 
   @Test
@@ -105,5 +125,26 @@ class MapTest {
     assertEquals(0, neigh.size)
   }
 
+  @Test
+  fun tordepdo_range_empty() {
+    val map = generateMapBigEmpty()
+    val range = map.torpedoRange(Vector2D(7, 7))
+    val tracker = Tracker(map)
+    tracker.candidates.clear()
+    tracker.candidates.addAll(range)
+    tracker.testPrintMap(false)
+    assertEquals(41, range.size)
+  }
+
+  @Test
+  fun tordepdo_range_islands() {
+    val map = generateMapTest1()
+    val range = map.torpedoRange(Vector2D(7, 7))
+    val tracker = Tracker(map)
+    tracker.candidates.clear()
+    tracker.candidates.addAll(range)
+    tracker.testPrintMap(false)
+    assertEquals(25, range.size)
+  }
 
 }
