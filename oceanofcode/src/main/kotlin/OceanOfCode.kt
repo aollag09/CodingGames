@@ -47,12 +47,13 @@ fun main(args: Array<String>) {
 
     env.initTurn()
     // Compute next action
-    val order =
-        if (env.trackerKasakta.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
-          AggressiveStrategy(env.trackerKasakta).next(env.terrible)
-        } else {
-          SilentStrategy(env.trackerTerrible).next(env.terrible)
-        }
+    var order: Order = Empty();
+    order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
+    if (order is Empty)
+      order = SilentStrategy(env.trackerTerrible).next(env.terrible)
+    if (order is Empty)
+      order = SurfaceStrategy().next()
+
     if (order is Move)
       println(order.toOrderString() + " TORPEDO")
     else
@@ -507,9 +508,12 @@ class AggressiveStrategy(val opponent: Tracker) {
 
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
-    var order = fire(submarine, opponent)
-    if (order is Empty)
-      order = naiveApproach(submarine, opponent)
+    var order: Order = Empty()
+    if (opponent.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+      order = fire(submarine, opponent)
+      if (order is Empty)
+        order = naiveApproach(submarine, opponent)
+    }
     return order;
   }
 
@@ -602,6 +606,12 @@ class SilentStrategy(val tracker: Tracker) {
     }
     System.err.println("Silent strategy, move to $best")
     return Move(submarine.position.direction(best))
+  }
+}
+
+class SurfaceStrategy() {
+  fun next(): Order {
+    return Surface()
   }
 }
 
