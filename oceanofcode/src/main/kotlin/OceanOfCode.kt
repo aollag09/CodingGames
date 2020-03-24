@@ -476,6 +476,7 @@ class Tracker(val map: Map) {
 
   fun updateSilence() {
     // Add lot of candidates :( can move from 1 to 4 in all direction :( :( :(
+    val newCandidates = mutableListOf<Vector2D>()
     for (candidate in candidates) {
       val snake = mutableListOf<Vector2D>()
       val snakeIt = Vector2D(candidate)
@@ -484,27 +485,29 @@ class Tracker(val map: Map) {
         snake.add(Vector2D(snakeIt))
       }
       for (delta in 1..4)
-        if (!addSilenceCandidate(candidate.getAdded(Vector2D(delta, 0)), snake))
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(delta, 0)), snake, newCandidates))
           break
       for (delta in 1..4)
-        if (!addSilenceCandidate(candidate.getAdded(Vector2D(-delta, 0)), snake))
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(-delta, 0)), snake, newCandidates))
           break
       for (delta in 1..4)
-        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, delta)), snake))
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, delta)), snake, newCandidates))
           break
       for (delta in 1..4)
-        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, -delta)), snake))
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, -delta)), snake, newCandidates))
           break
 
     }
+    candidates.addAll(newCandidates)
   }
 
-  private fun addSilenceCandidate(candidate: Vector2D, snake: List<Vector2D>): Boolean {
+  private fun addSilenceCandidate(candidate: Vector2D, snake: List<Vector2D>, newCandidates: MutableList<Vector2D>): Boolean {
     if (map.isWater(candidate))
-      if (!snake.contains(candidate)) {
-        candidates.add(candidate)
-        return true
-      }
+      if (!candidates.contains(candidate))
+        if (!snake.contains(candidate)) {
+          newCandidates.add(candidate)
+          return true
+        }
     return false
   }
 
