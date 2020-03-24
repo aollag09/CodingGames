@@ -91,7 +91,8 @@ class Env(val map: Map) {
 
   /** Initialize turn after input updates */
   fun initTurn() {
-    torpedoImpact(terrible, kasakta, trackerKasakta)
+    trackerKasakta.updateTorpedo(turn, terrible, kasakta)
+    trackerTerrible.updateTorpedo(turn, kasakta, terrible)
   }
 
   fun endTurn() {
@@ -121,49 +122,6 @@ class Env(val map: Map) {
       }
     }
     return graph
-  }
-
-  /** Compute the torpedo impact on tracker */
-  fun torpedoImpact(from: Submarine, to: Submarine, toTracker: Tracker) {
-    // Check torpedo impact in previous turn
-    var torpedo: Torpedo? = null
-    from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
-
-    if (torpedo != null) {
-      val target: Vector2D = torpedo!!.target
-      // Look if enemy has surfaced
-      var surfaced = false
-      to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
-
-      // Compute delta of life
-      var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
-      if (surfaced)
-        deltaLife -= 1
-
-      // Register impact of tracker
-      val candidate = toTracker.targetMap()
-      when (deltaLife) {
-        0 -> {
-          // A L'EAU, remove all candidates in the zone
-          toTracker.outdate(candidate[target])
-          toTracker.map.neighDiagonal(target).forEach { toTracker.outdate(candidate[it]) }
-        }
-        1 -> {
-          // TOUCHE, keep only candidates in the area
-          toTracker.outdate(candidate[target])
-          val candidates = mutableListOf<Vector2D>()
-          toTracker.map.neighDiagonal(target).forEach {
-            if (candidate[it] != null)
-              candidates.add(candidate.getValue(it))
-          }
-          toTracker.outdateAllExcept(candidates)
-        }
-        2 -> {
-          // TOUCHE COULE, NICE ! keep only target candidate !
-          toTracker.outdateAllExcept(listOf(candidate.getValue(target)))
-        }
-      }
-    }
   }
 
 }
@@ -462,6 +420,50 @@ class Tracker(val map: Map) {
     for (candidate in candidates)
       if (!sections.contains(candidate))
         outdated.add(candidate)
+  }
+
+  /** Compute the torpedo impact on tracker */
+  fun updateTorpedo(turn: Int, from: Submarine, to: Submarine) {
+      // Check torpedo impact in previous turn
+      var torpedo: Torpedo? = null
+      from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
+
+      if (torpedo != null) {
+        val target: Vector2D = torpedo!!.target
+        // Look if enemy has surfaced
+        var surfaced = false
+        to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
+
+        // Compute delta of life
+        var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
+        if (surfaced)
+          deltaLife -= 1
+
+        // Register impact of tracker
+        val candidate = targetMap()
+        when (deltaLife) {
+          0 -> {
+            // A L'EAU, remove all candidates in the zone
+            outdate(candidate[target])
+            map.neighDiagonal(target).forEach { outdate(candidate[it]) }
+          }
+          1 -> {
+            // TOUCHE, keep only candidates in the area
+            outdate(candidate[target])
+            val candidates = mutableListOf<Vector2D>()
+            map.neighDiagonal(target).forEach {
+              if (candidate[it] != null)
+                candidates.add(candidate.getValue(it))
+            }
+            outdateAllExcept(candidates)
+          }
+          2 -> {
+            // TOUCHE COULE, NICE ! keep only target candidate !
+            outdateAllExcept(listOf(candidate.getValue(target)))
+          }
+        }
+      }
+
   }
 
   fun testPrintMap(prod: Boolean) {
