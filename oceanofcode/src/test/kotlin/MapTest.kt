@@ -85,6 +85,26 @@ class MapTest {
       map.parse("...............", 14)
       return map
     }
+
+    fun generateMapTest3(): Map{
+      val map: Map = Map(15, 15)
+      map.parse("....xxxx.xx....", 0)
+      map.parse("....xx...xx....", 1)
+      map.parse("...............", 2)
+      map.parse("xx.xx..........", 3)
+      map.parse("xx.xx..........", 4)
+      map.parse("...............", 5)
+      map.parse("...............", 6)
+      map.parse("...............", 7)
+      map.parse("...............", 8)
+      map.parse("...............", 9)
+      map.parse("...............", 10)
+      map.parse("...............", 11)
+      map.parse("......xx.......", 12)
+      map.parse("......xx.......", 13)
+      map.parse("...............", 14)
+      return map
+    }
   }
 
   @Test

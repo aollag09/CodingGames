@@ -1,3 +1,4 @@
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 internal class OrderTest {
@@ -15,9 +16,11 @@ internal class OrderTest {
         "MOVE E",
         "MOVE S",
         "MOVE W",
-        "TORPEDO")
+        "TORPEDO",
+        "SILENCE",
+        "SILENCE N 3")
     test.forEach {
-      assert(Order.parseOrder(it).toOrderString() == it)
+      assertEquals(it, Order.parseOrder(it).toOrderString())
     }
   }
 

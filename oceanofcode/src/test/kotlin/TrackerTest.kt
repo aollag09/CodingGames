@@ -77,6 +77,16 @@ internal class TrackerTest {
   }
 
   @Test
+  fun test_surface_map3() {
+    val tracker = Tracker(MapTest.generateMapTest3())
+    tracker.candidates.clear()
+    tracker.candidates.add(Vector2D(0,5))
+    tracker.update(SurfaceSector(4))
+    tracker.testPrintMap(false)
+    assertEquals(1, tracker.candidates.size)
+  }
+
+  @Test
   fun test_torpedo_map1() {
     val tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(Torpedo(Vector2D(7, 7)))

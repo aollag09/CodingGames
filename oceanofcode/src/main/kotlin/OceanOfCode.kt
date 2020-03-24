@@ -472,6 +472,8 @@ class Tracker(val map: Map) {
         outdated.add(candidate)
   }
 
+  // TODO fun updateSilence(order:)
+
   /** Compute the torpedo impact on tracker */
   fun updateTorpedoReach(turn: Int, from: Submarine, to: Submarine) {
     // Check torpedo impact in previous turn
@@ -737,6 +739,14 @@ abstract class Order {
       }
       if (order == "TORPEDO")
         return LoadTorpedo()
+      if (order == "SILENCE")
+        return Silence()
+      if (order.contains("SILENCE")) {
+        val params = order.substringAfter(" ")
+        val direction = Direction.valueOf(params.substringBefore(" "))
+        val distance = params.substringAfter(" ").toInt()
+        return Silence(direction, distance)
+      }
       return Empty()
     }
   }
@@ -776,6 +786,18 @@ class Torpedo(val target: Vector2D) : Order() {
 class LoadTorpedo : Order() {
   override fun toOrderString(): String {
     return "TORPEDO"
+  }
+}
+
+class Silence(val direction: Direction, val distance: Int) : Order() {
+
+  constructor() : this(Direction.NA, 0)
+
+  override fun toOrderString(): String {
+    return if (direction == Direction.NA)
+      "SILENCE"
+    else
+      "SILENCE $direction $distance";
   }
 }
 
