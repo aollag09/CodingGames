@@ -363,7 +363,7 @@ class Tracker(val map: Map) {
   val outdated = mutableSetOf<Vector2D>()
 
   /** Tail of all directions */
-  private val trail = mutableListOf<Direction>()
+  val trail = mutableListOf<Direction>()
 
   init {
     candidates.addAll(map.getWater())
@@ -384,6 +384,8 @@ class Tracker(val map: Map) {
         updateSurface()
       if (order is Torpedo)
         updateTorpedoLaunch(order)
+      if (order is Silence)
+        updateSilence(order)
     }
     // Remove outdated
     candidates.removeAll(outdated)
@@ -472,7 +474,39 @@ class Tracker(val map: Map) {
         outdated.add(candidate)
   }
 
-  // TODO fun updateSilence(order:)
+  fun updateSilence(order: Silence) {
+    // Add lot of candidates :( can move from 1 to 4 in all direction :( :( :(
+    for (candidate in candidates) {
+      val snake = mutableListOf<Vector2D>()
+      val snakeIt = Vector2D(candidate);
+      for (direction in trail) {
+        snakeIt.apply(direction)
+        snake.add(Vector2D(snakeIt))
+      }
+      for (delta in 1..4)
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(delta, 0)), snake))
+          break;
+      for (delta in 1..4)
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(-delta, 0)), snake))
+          break;
+      for (delta in 1..4)
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, delta)), snake))
+          break;
+      for (delta in 1..4)
+        if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, -delta)), snake))
+          break;
+
+    }
+  }
+
+  private fun addSilenceCandidate(candidate: Vector2D, snake: List<Vector2D>): Boolean {
+    if (map.isWater(candidate))
+      if (!snake.contains(candidate)) {
+        candidates.add(candidate)
+        return true
+      }
+    return false
+  }
 
   /** Compute the torpedo impact on tracker */
   fun updateTorpedoReach(turn: Int, from: Submarine, to: Submarine) {
@@ -883,6 +917,12 @@ class Vector2D(var x: Double, var y: Double) {
       else -> {
       }
     }
+  }
+
+  fun getApplied(direction: Direction): Vector2D {
+    val new = Vector2D(this)
+    new.apply(direction)
+    return new;
   }
 
   fun distance(vx: Double, vy: Double): Double {
