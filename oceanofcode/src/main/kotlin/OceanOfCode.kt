@@ -49,10 +49,10 @@ fun main(args: Array<String>) {
 
     // Compute next action
     val order =
-        if (env.opTracker.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
-          AggressiveStrategy(env.opTracker).next(env.terrible)
+        if (env.trackerKasakta.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+          AggressiveStrategy(env.trackerKasakta).next(env.terrible)
         } else {
-          SilentStrategy(env.myTracker).next(env.terrible)
+          SilentStrategy(env.trackerTerrible).next(env.terrible)
         }
     if (order is Move)
       println(order.toOrderString() + " TORPEDO")
@@ -69,17 +69,17 @@ class Env(val map: Map) {
   /** Id of the turn */
   var turn = 0
 
-  /** My submarine */
+  /** My submarine, Le Terrible ! */
   val terrible = Submarine()
 
   /** My submarine tracker */
-  val myTracker = Tracker(map)
+  val trackerTerrible = Tracker(map)
 
   /** Opponent submarine */
   val kasakta = Submarine()
 
   /** Opponent submarine tracker */
-  val opTracker = Tracker(map)
+  val trackerKasakta = Tracker(map)
 
   /** Choose the starting point */
   fun start(): Vector2D {
@@ -92,45 +92,64 @@ class Env(val map: Map) {
 
   /** Initialize turn after input updates */
   fun initTurn() {
-    torpedoImpact()
+    torpedoImpact(terrible, kasakta, trackerKasakta)
   }
 
-  private fun torpedoImpact() {
+  /** Compute the torpedo impact on tracker */
+  fun torpedoImpact(from: Submarine, to: Submarine, toTracker: Tracker) {
     // Check torpedo impact in previous turn
     var torpedo: Torpedo? = null
-    terrible.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
+    from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
 
     if (torpedo != null) {
-      val target = torpedo?.target
+      val target: Vector2D = torpedo!!.target
       // Look if enemy has surfaced
       var surfaced = false
-      kasakta.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
+      to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
 
       // Compute delta of life
-      var deltaLife = kasakta.life.get(turn - 1) - kasakta.life.get(turn)
+      var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
       if (surfaced)
         deltaLife -= 1
 
       // Register impact of tracker
-      val targets = opTracker.targetMap()
-      if (deltaLife == 0) {
-        // A L'EAU
+      val candidate = toTracker.targetMap()
+      when (deltaLife) {
+        0 -> {
+          // A L'EAU, remove all candidates in the zone
+          toTracker.outdate(candidate[target])
+          toTracker.map.neighDiagonal(target).forEach { toTracker.outdate(candidate[it]) }
+        }
+        1 -> {
+          // TOUCHE, keep only candidates in the area
+          toTracker.outdate(candidate[target])
+          val candidates = mutableListOf<Vector2D>()
+          toTracker.map.neighDiagonal(target).forEach {
+            if (candidate[it] != null)
+              candidates.add(candidate.getValue(it))
+          }
+          toTracker.outdateAllExcept(candidates);
+        }
+        2 -> {
+          // TOUCHE COULE, NICE ! keep only target candidate !
+          toTracker.outdateAllExcept(listOf(candidate.getValue(target)))
+        }
       }
     }
   }
 
   fun endTurn() {
     // Update trackers
-    kasakta.orders.get(turn).forEach { opTracker.update(it) }
-    terrible.orders.get(turn).forEach { myTracker.update(it) }
+    kasakta.orders.get(turn).forEach { trackerKasakta.update(it) }
+    terrible.orders.get(turn).forEach { trackerTerrible.update(it) }
 
     // Print opponent tracker map
-    opTracker.testPrintMap(true)
+    trackerKasakta.testPrintMap(true)
   }
 
   /** Register submarine action */
   fun register(order: Order) {
-    myTracker.update(order)
+    trackerTerrible.update(order)
   }
 
   /** Register opponent submarine actions */
@@ -370,9 +389,11 @@ class Tracker(val map: Map) {
     candidates.removeAll(outdated)
   }
 
-  fun outdate(candidate: Vector2D) {
-    candidates.remove(candidate)
-    outdated.add(candidate)
+  fun outdate(candidate: Vector2D?) {
+    if (candidate != null) {
+      candidates.remove(candidate)
+      outdated.add(candidate)
+    }
   }
 
   fun outdateAllExcept(subset: List<Vector2D>) {
