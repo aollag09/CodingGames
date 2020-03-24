@@ -102,7 +102,6 @@ class Env(val map: Map) {
     // Update trackers
     trackerTerrible.update(terrible.orders.get(turn))
 
-
     // Print opponent tracker map
     trackerKasakta.testPrintMap(true)
   }
@@ -308,6 +307,8 @@ class Submarine {
     // add to trail move position
     if (order is Move)
       trail.add(position)
+    if (order is Surface || order is SurfaceSector)
+      trail.clear()
     orders.add(turn, order)
   }
 
@@ -347,6 +348,8 @@ class Tracker(val map: Map) {
       if (order is Move)
         updateMove(order)
       if (order is SurfaceSector)
+        updateSurfaceSector(order)
+      if( order is Surface)
         updateSurface(order)
     }
     // Remove outdated
@@ -417,13 +420,16 @@ class Tracker(val map: Map) {
     }
   }
 
-  private fun updateSurface(order: SurfaceSector) {
+  private fun updateSurface(order: Surface) {
+    trail.clear()
+  }
+
+  private fun updateSurfaceSector(order: SurfaceSector) {
     trail.clear()
     val sections = map.getWaterSection(order.sector)
-    for (section in sections) {
+    for (section in sections)
       if (!candidates.contains(section))
         candidates.add(section)
-    }
     for (candidate in candidates)
       if (!sections.contains(candidate))
         outdated.add(candidate)
