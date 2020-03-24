@@ -5,65 +5,74 @@ class EnvTest {
 
   companion object {
     fun generateEnvTest1(): Env {
-      return Env(MapTest.generateMapTest1());
+      return Env(MapTest.generateMapTest1())
     }
 
     fun generateEnvTest2(): Env {
-      return Env(MapTest.generateMapTest2());
+      return Env(MapTest.generateMapTest2())
     }
 
-    fun generateEnvSmallEmptyTest(): Env{
-      return Env(MapTest.generateSmallEmptyMapTest());
+    fun generateEnvSmallEmptyTest(): Env {
+      return Env(MapTest.generateSmallEmptyMapTest())
     }
   }
 
 
   @Test
-  fun torpedo_impact_a_leau(){
-    val env = generateEnvSmallEmptyTest();
+  fun torpedo_impact_a_leau() {
+    val env = generateEnvSmallEmptyTest()
 
-    env.terrible.register(0, Torpedo(Vector2D(3,3)))
+    env.terrible.register(0, Torpedo(Vector2D(3, 3)))
     env.kasakta.life.add(0, 6)
     env.kasakta.life.add(1, 6)
-    env.turn = 1;
+    env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta);
+    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(6, env.trackerKasakta.outdated.size)
   }
 
 
   @Test
-  fun torpedo_impact_touche(){
-    val env = generateEnvSmallEmptyTest();
+  fun torpedo_impact_touche() {
+    val env = generateEnvSmallEmptyTest()
 
-    env.terrible.register(0, Torpedo(Vector2D(3,3)))
+    env.terrible.register(0, Torpedo(Vector2D(3, 3)))
     env.kasakta.life.add(0, 6)
     // enemy has been touched
     env.kasakta.life.add(1, 5)
-    env.turn = 1;
+    env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta);
+    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(17, env.trackerKasakta.outdated.size)
   }
 
 
   @Test
-  fun torpedo_impact_touche_coule(){
-    val env = generateEnvSmallEmptyTest();
+  fun torpedo_impact_touche_coule() {
+    val env = generateEnvSmallEmptyTest()
 
-    env.terrible.register(0, Torpedo(Vector2D(3,3)))
+    env.terrible.register(0, Torpedo(Vector2D(3, 3)))
     env.kasakta.life.add(0, 6)
     // enemy has been touched hard !
     env.kasakta.life.add(1, 4)
-    env.turn = 1;
+    env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta);
+    env.torpedoImpact(env.terrible, env.kasakta, env.trackerKasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(1, env.trackerKasakta.candidates.size)
+  }
+
+  @Test
+  fun test_surface() {
+    val env = generateEnvTest1()
+    env.kasakta.register(0, SurfaceSector(1))
+    env.endTurn();
+    env.initTurn()
+    assertEquals(17, env.trackerKasakta.candidates.size)
   }
 }

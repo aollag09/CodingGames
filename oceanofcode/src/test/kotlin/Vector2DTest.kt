@@ -12,14 +12,14 @@ internal class Vector2DTest {
 
   @Test
   fun distance() {
-    assertEquals(1.0, Vector2D(0, 0).distance(Vector2D(-1, 0)));
+    assertEquals(1.0, Vector2D(0, 0).distance(Vector2D(-1, 0)))
   }
 
   @Test
   fun testEquals() {
-    assertEquals(Vector2D(2, 2), Vector2D(2, 2));
-    assertEquals(Vector2D(0, 0), Vector2D());
-    assertEquals(Vector2D(0, 0), Vector2D(0.0, 0.0));
+    assertEquals(Vector2D(2, 2), Vector2D(2, 2))
+    assertEquals(Vector2D(0, 0), Vector2D())
+    assertEquals(Vector2D(0, 0), Vector2D(0.0, 0.0))
   }
 
   @Test

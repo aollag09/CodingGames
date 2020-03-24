@@ -10,7 +10,7 @@ fun main(args: Array<String>) {
   val input = Scanner(System.`in`)
   val width = input.nextInt()
   val height = input.nextInt()
-  val myId = input.nextInt()
+  @Suppress("UNUSED_VARIABLE") val myId = input.nextInt()
 
   if (input.hasNextLine()) {
     input.nextLine()
@@ -43,10 +43,9 @@ fun main(args: Array<String>) {
     if (input.hasNextLine()) {
       input.nextLine()
     }
-    env.registerOp(Order.parse(input.nextLine()))
+    env.kasakta.register(env.turn, Order.parse(input.nextLine()))
 
     env.initTurn()
-
     // Compute next action
     val order =
         if (env.trackerKasakta.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
@@ -60,7 +59,7 @@ fun main(args: Array<String>) {
       println(order.toOrderString())
 
     // Register action
-    env.register(order)
+    env.terrible.register(env.turn, order)
     env.endTurn()
   }
 }
@@ -93,6 +92,35 @@ class Env(val map: Map) {
   /** Initialize turn after input updates */
   fun initTurn() {
     torpedoImpact(terrible, kasakta, trackerKasakta)
+  }
+
+  fun endTurn() {
+    // Update trackers
+    trackerTerrible.update(terrible.orders.get(turn))
+    trackerKasakta.update(kasakta.orders.get(turn))
+
+    // Print opponent tracker map
+    trackerKasakta.testPrintMap(true)
+  }
+
+  /** Create a graph of next movable positions regarding environment */
+  fun moveGraph(start: Vector2D = terrible.position): Graph<Vector2D> {
+    val graph: Graph<Vector2D> = Graph()
+    val visited: MutableSet<Vector2D> = terrible.trail.toMutableSet()
+    val toVisit: MutableList<Vector2D> = mutableListOf()
+    toVisit.add(start)
+    while (toVisit.isNotEmpty()) {
+      val next: Vector2D = toVisit.removeAt(0)
+      if (!visited.contains(next)) {
+        for (neigh in map.neigh(next)) {
+          graph.addEdge(next, neigh)
+          if (!visited.contains(neigh))
+            toVisit.add(neigh)
+        }
+        visited.add(next)
+      }
+    }
+    return graph
   }
 
   /** Compute the torpedo impact on tracker */
@@ -128,7 +156,7 @@ class Env(val map: Map) {
             if (candidate[it] != null)
               candidates.add(candidate.getValue(it))
           }
-          toTracker.outdateAllExcept(candidates);
+          toTracker.outdateAllExcept(candidates)
         }
         2 -> {
           // TOUCHE COULE, NICE ! keep only target candidate !
@@ -138,47 +166,7 @@ class Env(val map: Map) {
     }
   }
 
-  fun endTurn() {
-    // Update trackers
-    kasakta.orders.get(turn).forEach { trackerKasakta.update(it) }
-    terrible.orders.get(turn).forEach { trackerTerrible.update(it) }
-
-    // Print opponent tracker map
-    trackerKasakta.testPrintMap(true)
-  }
-
-  /** Register submarine action */
-  fun register(order: Order) {
-    trackerTerrible.update(order)
-  }
-
-  /** Register opponent submarine actions */
-  fun registerOp(orders: List<Order>) {
-    kasakta.orders.add(turn, orders)
-  }
-
-  /** Create a graph of next movable positions regarding environment */
-  fun moveGraph(start: Vector2D = terrible.position): Graph<Vector2D> {
-    val graph: Graph<Vector2D> = Graph()
-    val visited: MutableSet<Vector2D> = terrible.trail.toMutableSet()
-    val toVisit: MutableList<Vector2D> = mutableListOf()
-    toVisit.add(start)
-    while (toVisit.isNotEmpty()) {
-      val next: Vector2D = toVisit.removeAt(0)
-      if (!visited.contains(next)) {
-        for (neigh in map.neigh(next)) {
-          graph.addEdge(next, neigh)
-          if (!visited.contains(neigh))
-            toVisit.add(neigh)
-        }
-        visited.add(next)
-      }
-    }
-    return graph
-  }
-
 }
-
 
 class Map(width: Int, height: Int) {
   val size: Vector2D = Vector2D(width, height)
@@ -358,6 +346,11 @@ class Submarine() {
     orders.add(turn, order)
   }
 
+  /** Register orders for a specific turn */
+  fun register(turn: Int, orders: List<Order>) {
+    orders.forEach { register(turn, it) }
+  }
+
   fun isTorpedoReady(): Boolean {
     return this.torpedoCoolDown == 0
   }
@@ -372,19 +365,25 @@ class Tracker(val map: Map) {
   /** Outdated during the current turn */
   val outdated = mutableSetOf<Vector2D>()
 
-  /** Tail of all move actions */
+  /** Tail of all directions */
   private val trail = mutableListOf<Direction>()
 
   init {
     candidates.addAll(map.getWater())
   }
 
-  fun update(order: Order) {
+  fun update(order: Order){
+    update(listOf(order))
+  }
+
+  fun update(orders: List<Order>) {
     outdated.clear()
-    if (order is Move)
-      updateMove(order)
-    if (order is SurfaceSector)
-      updateSurface(order)
+    for (order in orders) {
+      if (order is Move)
+        updateMove(order)
+      if (order is SurfaceSector)
+        updateSurface(order)
+    }
     // Remove outdated
     candidates.removeAll(outdated)
   }
@@ -622,7 +621,7 @@ class OrderHistory {
   fun get(turn: Int): List<Order> {
     if (orders.containsKey(turn))
       return orders[turn]!!
-    return emptyList<Order>()
+    return emptyList()
   }
 
 }

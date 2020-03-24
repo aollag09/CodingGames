@@ -5,71 +5,71 @@ class MapTest {
 
   companion object {
     fun generateMapTest1(): Map {
-      val map: Map = Map(15, 15);
-      map.parse("...xx........xx", 0);
-      map.parse(".............xx", 1);
-      map.parse("...........xx..", 2);
-      map.parse("..xxx......xx..", 3);
-      map.parse("..xxx..........", 4);
-      map.parse(".xxxx..........", 5);
-      map.parse(".xxxx..........", 6);
-      map.parse(".xxxxx..xx.....", 7);
-      map.parse(".xxxxx..xx.....", 8);
-      map.parse("........xx.....", 9);
-      map.parse("........xx.....", 10);
-      map.parse("..............x", 11);
-      map.parse("..............x", 12);
-      map.parse("...............", 13);
-      map.parse("...............", 14);
-      return map;
+      val map: Map = Map(15, 15)
+      map.parse("...xx........xx", 0)
+      map.parse(".............xx", 1)
+      map.parse("...........xx..", 2)
+      map.parse("..xxx......xx..", 3)
+      map.parse("..xxx..........", 4)
+      map.parse(".xxxx..........", 5)
+      map.parse(".xxxx..........", 6)
+      map.parse(".xxxxx..xx.....", 7)
+      map.parse(".xxxxx..xx.....", 8)
+      map.parse("........xx.....", 9)
+      map.parse("........xx.....", 10)
+      map.parse("..............x", 11)
+      map.parse("..............x", 12)
+      map.parse("...............", 13)
+      map.parse("...............", 14)
+      return map
     }
 
     fun generateMapTest2(): Map {
-      val map: Map = Map(15, 15);
-      map.parse("xx.............", 0);
-      map.parse("xx.............", 1);
-      map.parse("xx.............", 2);
-      map.parse("...............", 3);
-      map.parse(".....xx.xx.....", 4);
-      map.parse(".....xx.xx.xxx.", 5);
-      map.parse("...........xxx.", 6);
-      map.parse("xxxx...........", 7);
-      map.parse("xxxx...........", 8);
-      map.parse(".xx............", 9);
-      map.parse("...............", 10);
-      map.parse("xxx.xxx........", 11);
-      map.parse("xxx.xxx........", 12);
-      map.parse(".xx.xxx.xx.....", 13);
-      map.parse("........xx.....", 14);
-      return map;
+      val map: Map = Map(15, 15)
+      map.parse("xx.............", 0)
+      map.parse("xx.............", 1)
+      map.parse("xx.............", 2)
+      map.parse("...............", 3)
+      map.parse(".....xx.xx.....", 4)
+      map.parse(".....xx.xx.xxx.", 5)
+      map.parse("...........xxx.", 6)
+      map.parse("xxxx...........", 7)
+      map.parse("xxxx...........", 8)
+      map.parse(".xx............", 9)
+      map.parse("...............", 10)
+      map.parse("xxx.xxx........", 11)
+      map.parse("xxx.xxx........", 12)
+      map.parse(".xx.xxx.xx.....", 13)
+      map.parse("........xx.....", 14)
+      return map
     }
 
     fun generateSmallEmptyMapTest(): Map {
-      val map: Map = Map(5, 5);
-      map.parse(".....", 0);
-      map.parse(".....", 1);
-      map.parse(".....", 2);
-      map.parse(".....", 3);
-      map.parse(".....", 4);
+      val map: Map = Map(5, 5)
+      map.parse(".....", 0)
+      map.parse(".....", 1)
+      map.parse(".....", 2)
+      map.parse(".....", 3)
+      map.parse(".....", 4)
 
-      return map;
+      return map
     }
 
     fun generateSmallMapTest(): Map {
-      val map: Map = Map(5, 5);
-      map.parse(".....", 0);
-      map.parse("xxx..", 1);
-      map.parse("xx...", 2);
-      map.parse("...x.", 3);
-      map.parse("x...x.", 4);
+      val map: Map = Map(5, 5)
+      map.parse(".....", 0)
+      map.parse("xxx..", 1)
+      map.parse("xx...", 2)
+      map.parse("...x.", 3)
+      map.parse("x...x.", 4)
 
-      return map;
+      return map
     }
   }
 
   @Test
   fun isIsland() {
-    var map: Map = generateMapTest1();
+    var map: Map = generateMapTest1()
     assert(map.isIsland(Vector2D(4, 0)))
     assert(map.isIsland(Vector2D(1, 5)))
     assert(!map.isIsland(Vector2D(0, 0)))
@@ -78,7 +78,7 @@ class MapTest {
 
   @Test
   fun isWater() {
-    var map: Map = generateMapTest1();
+    var map: Map = generateMapTest1()
     assert(!map.isWater(Vector2D(4, 0)))
     assert(!map.isWater(Vector2D(1, 5)))
     assert(map.isWater(Vector2D(0, 0)))
@@ -91,12 +91,12 @@ class MapTest {
 
   @Test
   fun neigh() {
-    var map: Map = generateMapTest1();
+    var map: Map = generateMapTest1()
 
-    var neigh = map.neigh(Vector2D(4, 13));
+    var neigh = map.neigh(Vector2D(4, 13))
     assertEquals(4, neigh.size)
 
-    neigh = map.neigh(Vector2D(0, 0));
+    neigh = map.neigh(Vector2D(0, 0))
     assertEquals(2, neigh.size)
     assert(neigh.contains(Vector2D(1, 0)))
     assert(neigh.contains(Vector2D(0, 1)))
