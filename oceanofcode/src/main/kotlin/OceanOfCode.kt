@@ -86,7 +86,7 @@ class Env(val map: Map) {
   /** Choose the starting point */
   fun start(): Vector2D {
     val waters: Set<Vector2D> = map.getWater()
-    val i = Random.nextInt(0, waters.size - 1)
+    val i = Random(12345).nextInt(0, waters.size - 1)
     val list = mutableListOf<Vector2D>()
     list.addAll(waters)
     return list[i]
