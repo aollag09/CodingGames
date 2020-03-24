@@ -44,11 +44,13 @@ fun main(args: Array<String>) {
       input.nextLine()
     }
     env.kasakta.register(env.turn, Order.parse(input.nextLine()))
+    env.trackerKasakta.update(env.kasakta.orders.get(env.turn))
 
-    env.initTurn()
     // Compute next action
     var order: Order = Empty();
-    order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
+    order = TrapStrategy(env.map).next(env.terrible)
+    if (order is Empty)
+      order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
     if (order is Empty)
       order = SilentStrategy(env.trackerTerrible).next(env.terrible)
     if (order is Empty)
@@ -99,7 +101,7 @@ class Env(val map: Map) {
   fun endTurn() {
     // Update trackers
     trackerTerrible.update(terrible.orders.get(turn))
-    trackerKasakta.update(kasakta.orders.get(turn))
+
 
     // Print opponent tracker map
     trackerKasakta.testPrintMap(true)
@@ -612,6 +614,15 @@ class SilentStrategy(val tracker: Tracker) {
 class SurfaceStrategy() {
   fun next(): Order {
     return Surface()
+  }
+}
+
+class TrapStrategy(val map: Map) {
+  fun next(submarine: Submarine): Order {
+    return if (submarine.neigh(map).isEmpty())
+      Surface()
+    else
+      Empty()
   }
 }
 
