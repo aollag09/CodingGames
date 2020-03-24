@@ -48,7 +48,7 @@ fun main(args: Array<String>) {
     env.trackerKasakta.update(env.kasakta.orders.get(env.turn))
 
     // Compute next action
-    var order: Order;
+    var order: Order
     order = TrapStrategy(env.map).next(env.terrible)
     if (order is Empty)
       order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
@@ -385,7 +385,7 @@ class Tracker(val map: Map) {
       if (order is Torpedo)
         updateTorpedoLaunch(order)
       if (order is Silence)
-        updateSilence(order)
+        updateSilence()
     }
     // Remove outdated
     candidates.removeAll(outdated)
@@ -474,27 +474,27 @@ class Tracker(val map: Map) {
         outdated.add(candidate)
   }
 
-  fun updateSilence(order: Silence) {
+  fun updateSilence() {
     // Add lot of candidates :( can move from 1 to 4 in all direction :( :( :(
     for (candidate in candidates) {
       val snake = mutableListOf<Vector2D>()
-      val snakeIt = Vector2D(candidate);
+      val snakeIt = Vector2D(candidate)
       for (direction in trail) {
         snakeIt.apply(direction)
         snake.add(Vector2D(snakeIt))
       }
       for (delta in 1..4)
         if (!addSilenceCandidate(candidate.getAdded(Vector2D(delta, 0)), snake))
-          break;
+          break
       for (delta in 1..4)
         if (!addSilenceCandidate(candidate.getAdded(Vector2D(-delta, 0)), snake))
-          break;
+          break
       for (delta in 1..4)
         if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, delta)), snake))
-          break;
+          break
       for (delta in 1..4)
         if (!addSilenceCandidate(candidate.getAdded(Vector2D(0, -delta)), snake))
-          break;
+          break
 
     }
   }
@@ -590,12 +590,12 @@ class AggressiveStrategy(val opponent: Tracker) {
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
     var order: Order = Empty()
-    if (opponent.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+    if (opponent.candidates.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
       order = fire(submarine, opponent)
       if (order is Empty)
         order = naiveApproach(submarine, opponent)
     }
-    return order;
+    return order
   }
 
   /** Try to fire a torpedo and best target */
@@ -661,7 +661,7 @@ class AggressiveStrategy(val opponent: Tracker) {
           val realDist = path.size
           if (realDist < best) {
             best = realDist
-            bestDirection = submarine.position.direction(path[1]);
+            bestDirection = submarine.position.direction(path[1])
           }
         }
       }
@@ -690,7 +690,7 @@ class SilentStrategy(val tracker: Tracker) {
   }
 }
 
-class SurfaceStrategy() {
+class SurfaceStrategy {
   fun next(): Order {
     return Surface()
   }
@@ -831,7 +831,7 @@ class Silence(val direction: Direction, val distance: Int) : Order() {
     return if (direction == Direction.NA)
       "SILENCE"
     else
-      "SILENCE $direction $distance";
+      "SILENCE $direction $distance"
   }
 }
 
@@ -922,7 +922,7 @@ class Vector2D(var x: Double, var y: Double) {
   fun getApplied(direction: Direction): Vector2D {
     val new = Vector2D(this)
     new.apply(direction)
-    return new;
+    return new
   }
 
   fun distance(vx: Double, vy: Double): Double {
