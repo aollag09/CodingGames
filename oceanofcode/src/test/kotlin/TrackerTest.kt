@@ -38,32 +38,40 @@ internal class TrackerTest {
 
   @Test
   fun test_surface_map1() {
-    val tracker = Tracker(MapTest.generateMapTest1())
+    var tracker = Tracker(MapTest.generateMapTest1())
     tracker.testPrintMap(false)
     tracker.update(SurfaceSector(1))
     assertEquals(17, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(2))
     assertEquals(25, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(3))
     assertEquals(17, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(4))
     assertEquals(9, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(5))
     assertEquals(17, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(6))
     assertEquals(25, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(7))
     assertEquals(25, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(8))
     assertEquals(23, tracker.candidates.size)
 
+    tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(SurfaceSector(9))
     assertEquals(23, tracker.candidates.size)
   }
