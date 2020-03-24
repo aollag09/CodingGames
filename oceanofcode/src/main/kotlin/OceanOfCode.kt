@@ -207,6 +207,10 @@ class Map(width: Int, height: Int) {
   fun path(from: Vector2D, to: Vector2D, forbidden: Set<Vector2D> = setOf()): List<Vector2D>? {
     val parents = mutableMapOf<Vector2D, Vector2D>()
 
+    // quick stop
+    if (forbidden.contains(to) || from == to)
+      return null
+
     // Ordered queue
     val open = PriorityQueue<Vector2D>(kotlin.Comparator { t1, t2 -> (t1.distance(to) - t2.distance(to)).toInt() })
     open.add(from)
@@ -240,14 +244,14 @@ class Map(width: Int, height: Int) {
           }
         }
       }
-
     }
 
     // no path has been found :(
     return null
   }
 
-  private fun buildPath(parents: kotlin.collections.Map<Vector2D, Vector2D>, to: Vector2D, from: Vector2D): List<Vector2D> {
+  private fun buildPath(parents: kotlin.collections.Map<Vector2D, Vector2D>,
+                        to: Vector2D, from: Vector2D): List<Vector2D> {
     val path = mutableListOf<Vector2D>()
     var current = to
     while (current != from) {
@@ -261,7 +265,7 @@ class Map(width: Int, height: Int) {
 
 }
 
-class Submarine() {
+class Submarine {
 
   companion object {
     const val TORPEDO_RANGE = 4
@@ -330,7 +334,7 @@ class Tracker(val map: Map) {
     candidates.addAll(map.getWater())
   }
 
-  fun update(order: Order){
+  fun update(order: Order) {
     update(listOf(order))
   }
 
@@ -424,45 +428,45 @@ class Tracker(val map: Map) {
 
   /** Compute the torpedo impact on tracker */
   fun updateTorpedo(turn: Int, from: Submarine, to: Submarine) {
-      // Check torpedo impact in previous turn
-      var torpedo: Torpedo? = null
-      from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
+    // Check torpedo impact in previous turn
+    var torpedo: Torpedo? = null
+    from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
 
-      if (torpedo != null) {
-        val target: Vector2D = torpedo!!.target
-        // Look if enemy has surfaced
-        var surfaced = false
-        to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
+    if (torpedo != null) {
+      val target: Vector2D = torpedo!!.target
+      // Look if enemy has surfaced
+      var surfaced = false
+      to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
 
-        // Compute delta of life
-        var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
-        if (surfaced)
-          deltaLife -= 1
+      // Compute delta of life
+      var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
+      if (surfaced)
+        deltaLife -= 1
 
-        // Register impact of tracker
-        val candidate = targetMap()
-        when (deltaLife) {
-          0 -> {
-            // A L'EAU, remove all candidates in the zone
-            outdate(candidate[target])
-            map.neighDiagonal(target).forEach { outdate(candidate[it]) }
+      // Register impact of tracker
+      val candidate = targetMap()
+      when (deltaLife) {
+        0 -> {
+          // A L'EAU, remove all candidates in the zone
+          outdate(candidate[target])
+          map.neighDiagonal(target).forEach { outdate(candidate[it]) }
+        }
+        1 -> {
+          // TOUCHE, keep only candidates in the area
+          outdate(candidate[target])
+          val candidates = mutableListOf<Vector2D>()
+          map.neighDiagonal(target).forEach {
+            if (candidate[it] != null)
+              candidates.add(candidate.getValue(it))
           }
-          1 -> {
-            // TOUCHE, keep only candidates in the area
-            outdate(candidate[target])
-            val candidates = mutableListOf<Vector2D>()
-            map.neighDiagonal(target).forEach {
-              if (candidate[it] != null)
-                candidates.add(candidate.getValue(it))
-            }
-            outdateAllExcept(candidates)
-          }
-          2 -> {
-            // TOUCHE COULE, NICE ! keep only target candidate !
-            outdateAllExcept(listOf(candidate.getValue(target)))
-          }
+          outdateAllExcept(candidates)
+        }
+        2 -> {
+          // TOUCHE COULE, NICE ! keep only target candidate !
+          outdateAllExcept(listOf(candidate.getValue(target)))
         }
       }
+    }
 
   }
 
@@ -503,67 +507,84 @@ class AggressiveStrategy(val opponent: Tracker) {
 
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
-    // Compute distances of all targets
-    val distances = mutableMapOf<Vector2D, Int>()
-    for (target in opponent.targets()) {
-      val path = opponent.map.path(submarine.position, target, submarine.trail)
-      var distance = 0
-      if (path != null)
-        distance = path.size
-      distances[target] = distance
-    }
-    return attack(submarine, distances, opponent)
+    var order = fire(submarine, opponent)
+    if (order is Empty)
+      order = naiveApproach(submarine, opponent)
+    return order;
   }
 
-  private fun attack(submarine: Submarine, distances: MutableMap<Vector2D, Int>, opponent: Tracker): Order {
+  /** Try to fire a torpedo and best target */
+  fun fire(submarine: Submarine, opponent: Tracker): Order {
     var order: Order = Empty()
+    if (!submarine.isTorpedoReady())
+      return order
 
     // Look for best target : showing the most information ...
-    var best = Double.MIN_VALUE
-    var bestTarget = Vector2D()
-    for ((target, distance) in distances) {
-      if (target == submarine.position)
-        continue
+    var best = 0.2 // min evaluation to fire
+    var bestTarget: Vector2D? = null
+    val targets = opponent.targets()
+    val nbTotalTargets = targets.size
+    for (target in targets) {
 
-      // Count targets
+      // Count percentage of targets will be touch
       var nbTarget = 1
-      opponent.map.neighDiagonal(target).forEach { if ((distances.keys).contains(it)) nbTarget++ }
+      opponent.map.neighDiagonal(target).forEach { if (targets.contains(it)) nbTarget++ }
+      val targetPercentage = nbTarget.toDouble() / nbTotalTargets
 
-      val FACTOR_NB_TARGET = 3
-      val FACTOR_DISTANCE = -1.0
-      val evaluation = FACTOR_NB_TARGET * nbTarget + FACTOR_DISTANCE * distance
+      // Evaluate distance
+      val quickDistance = submarine.position.distance(target)
+      if (quickDistance <= Submarine.TORPEDO_RANGE + 1) {
+        // Target may be reachable
+        val realPath = opponent.map.path(submarine.position, target)
+        if (realPath != null) {
+          val realDistance = realPath.size
+          if (realDistance <= Submarine.TORPEDO_RANGE + 1) {
+            // Target is reachable, launch evaluation
+            var evaluation = targetPercentage
+            if (realDistance == 0)
+              continue // will not fire on me please
+            if (realDistance == 1)
+              evaluation -= 0.5 // accept to fire next to me but with penalty
 
-      if (evaluation > best) {
-        best = evaluation
-        bestTarget = target
-      }
-    }
-
-    // Fire ?
-    if (submarine.isTorpedoReady()) {
-      // Target found
-      if (best > Double.MIN_VALUE) {
-        // In range ?
-        if ((distances[bestTarget]!! - 1) < Submarine.TORPEDO_RANGE) {
-          System.err.println("Attack strategy Fire on $bestTarget")
-          order = Torpedo(bestTarget)
+            if (evaluation > best) {
+              best = evaluation
+              bestTarget = target
+            }
+          }
         }
       }
     }
 
-    // Approach
-    if (order is Empty) {
-      val path = opponent.map.path(submarine.position, bestTarget)
-      if (path != null && path.size > 1) {
-        val direction = submarine.position.direction(path[1])
-        System.err.println("Attack strategy Move on $bestTarget with direction :$direction")
-        order = Move(direction)
-      }
+    // Target found
+    if (bestTarget != null) {
+      System.err.println("Attack strategy Fire on $bestTarget")
+      order = Torpedo(bestTarget)
     }
 
     return order
   }
 
+  /** Try an approach on the best target */
+  private fun naiveApproach(submarine: Submarine, opponent: Tracker): Order {
+    var best = Int.MAX_VALUE
+    var bestDirection = Direction.NA
+    for (target in opponent.targets()) {
+      val quickDist = submarine.position.distance(target)
+      if (quickDist < best) {
+        val path = opponent.map.path(submarine.position, target, submarine.trail)
+        if (path != null && path.size > 1) {
+          val realDist = path.size
+          if (realDist < best) {
+            best = realDist
+            bestDirection = submarine.position.direction(path[1]);
+          }
+        }
+      }
+    }
+    if (bestDirection != Direction.NA)
+      return Move(bestDirection)
+    return Empty()
+  }
 }
 
 class SilentStrategy(val tracker: Tracker) {
