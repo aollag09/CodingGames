@@ -43,6 +43,7 @@ fun main(args: Array<String>) {
     if (input.hasNextLine()) {
       input.nextLine()
     }
+    env.initTurn()
     env.kasakta.register(env.turn, Order.parse(input.nextLine()))
     env.trackerKasakta.update(env.kasakta.orders.get(env.turn))
 
@@ -459,9 +460,6 @@ class Tracker(val map: Map) {
   private fun updateSurfaceSector(order: SurfaceSector) {
     trail.clear()
     val sections = map.getWaterSection(order.sector)
-    for (section in sections)
-      if (!candidates.contains(section))
-        candidates.add(section)
     for (candidate in candidates)
       if (!sections.contains(candidate))
         outdated.add(candidate)
