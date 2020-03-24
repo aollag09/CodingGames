@@ -11,9 +11,9 @@ internal class AggressiveStrategyTest {
     env.opTracker.update(Move(Direction.S))
     env.opTracker.testPrintMap(false)
 
-    env.submarine.position = Vector2D()
+    env.terrible.position = Vector2D()
     val strategy = AggressiveStrategy(env.opTracker);
-    val order = strategy.next(env.submarine)
+    val order = strategy.next(env.terrible)
     assert(order is Move)
     assertEquals(Direction.S, (order as Move).direction)
   }
@@ -26,11 +26,11 @@ internal class AggressiveStrategyTest {
     env.opTracker.update(Move(Direction.S))
     env.opTracker.testPrintMap(false)
 
-    env.submarine.position = Vector2D(1, 3)
-    env.submarine.torpedoCoolDown = 0;
+    env.terrible.position = Vector2D(1, 3)
+    env.terrible.torpedoCoolDown = 0;
 
     val strategy = AggressiveStrategy(env.opTracker);
-    val order = strategy.next(env.submarine)
+    val order = strategy.next(env.terrible)
     assert(order is Torpedo)
   }
 }

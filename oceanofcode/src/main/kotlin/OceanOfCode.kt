@@ -16,42 +16,43 @@ fun main(args: Array<String>) {
     input.nextLine()
   }
 
-  // Create main.kotlin.Map
+  // Create Map
   val map = Map(width, height)
   for (j in 0 until height)
     map.parse(input.nextLine(), j)
 
   // Initialise environment
   val env = Env(map)
-  env.submarine.id = myId
 
+  // Compute start position
   val start: Vector2D = env.start()
   println(start.getIX().toString() + " " + start.getIY().toString())
 
   // game loop
   while (true) {
     // Update environment
-    env.submarine.position = Vector2D(input.nextInt(), input.nextInt())
-    env.submarine.life = input.nextInt()
-    env.opponent.life = input.nextInt()
-    env.submarine.torpedoCoolDown = input.nextInt()
-    env.submarine.sonarCoolDown = input.nextInt()
-    env.submarine.silenceCoolDown = input.nextInt()
-    env.submarine.mineCoolDown = input.nextInt()
-    env.submarine.sonarResult = input.next()
+    env.turn++
+    env.terrible.position = Vector2D(input.nextInt(), input.nextInt())
+    env.terrible.life.add(env.turn, input.nextInt())
+    env.kasakta.life.add(env.turn, input.nextInt())
+    env.terrible.torpedoCoolDown = input.nextInt()
+    env.terrible.sonarCoolDown = input.nextInt()
+    env.terrible.silenceCoolDown = input.nextInt()
+    env.terrible.mineCoolDown = input.nextInt()
+    env.terrible.sonarResult = input.next()
     if (input.hasNextLine()) {
       input.nextLine()
     }
-    env.opponent.orders = Order.parse(input.nextLine())
-    env.opponent.orders.forEach { env.opTracker.update(it) }
-    env.opTracker.testPrintMap(true)
+    env.registerOp(Order.parse(input.nextLine()))
+
+    env.initTurn()
 
     // Compute next action
     val order =
         if (env.opTracker.candidates.size < AggressiveStrategy.MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
-          AggressiveStrategy(env.opTracker).next(env.submarine)
+          AggressiveStrategy(env.opTracker).next(env.terrible)
         } else {
-          SilentStrategy(env.myTracker).next(env.submarine)
+          SilentStrategy(env.myTracker).next(env.terrible)
         }
     if (order is Move)
       println(order.toOrderString() + " TORPEDO")
@@ -60,26 +61,87 @@ fun main(args: Array<String>) {
 
     // Register action
     env.register(order)
+    env.endTurn()
   }
 }
 
 class Env(val map: Map) {
+  /** Id of the turn */
+  var turn = 0
+
   /** My submarine */
-  val submarine = Submarine()
+  val terrible = Submarine()
 
   /** My submarine tracker */
-  val myTracker = SubmarineTracker(map)
+  val myTracker = Tracker(map)
 
   /** Opponent submarine */
-  val opponent = Opponent()
+  val kasakta = Submarine()
 
   /** Opponent submarine tracker */
-  val opTracker = SubmarineTracker(map)
+  val opTracker = Tracker(map)
+
+  /** Choose the starting point */
+  fun start(): Vector2D {
+    val waters: Set<Vector2D> = map.getWater()
+    val i = Random.nextInt(0, waters.size - 1)
+    val list = mutableListOf<Vector2D>()
+    list.addAll(waters)
+    return list[i]
+  }
+
+  /** Initialize turn after input updates */
+  fun initTurn() {
+    torpedoImpact()
+  }
+
+  private fun torpedoImpact() {
+    // Check torpedo impact in previous turn
+    var torpedo: Torpedo? = null
+    terrible.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
+
+    if (torpedo != null) {
+      val target = torpedo?.target
+      // Look if enemy has surfaced
+      var surfaced = false
+      kasakta.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
+
+      // Compute delta of life
+      var deltaLife = kasakta.life.get(turn - 1) - kasakta.life.get(turn)
+      if (surfaced)
+        deltaLife -= 1
+
+      // Register impact of tracker
+      val targets = opTracker.targetMap()
+      if (deltaLife == 0) {
+        // A L'EAU
+      }
+    }
+  }
+
+  fun endTurn() {
+    // Update trackers
+    kasakta.orders.get(turn).forEach { opTracker.update(it) }
+    terrible.orders.get(turn).forEach { myTracker.update(it) }
+
+    // Print opponent tracker map
+    opTracker.testPrintMap(true)
+  }
+
+  /** Register submarine action */
+  fun register(order: Order) {
+    myTracker.update(order)
+  }
+
+  /** Register opponent submarine actions */
+  fun registerOp(orders: List<Order>) {
+    kasakta.orders.add(turn, orders)
+  }
 
   /** Create a graph of next movable positions regarding environment */
-  fun moveGraph(start: Vector2D = submarine.position): Graph<Vector2D> {
-    val graph: Graph<Vector2D> = Graph(false)
-    val visited: MutableSet<Vector2D> = submarine.trail.toMutableSet()
+  fun moveGraph(start: Vector2D = terrible.position): Graph<Vector2D> {
+    val graph: Graph<Vector2D> = Graph()
+    val visited: MutableSet<Vector2D> = terrible.trail.toMutableSet()
     val toVisit: MutableList<Vector2D> = mutableListOf()
     toVisit.add(start)
     while (toVisit.isNotEmpty()) {
@@ -96,22 +158,8 @@ class Env(val map: Map) {
     return graph
   }
 
-  /** Choose the starting point */
-  fun start(): Vector2D {
-    val waters: Set<Vector2D> = map.getWater()
-    val i = Random.nextInt(0, waters.size - 1)
-    val list = mutableListOf<Vector2D>()
-    list.addAll(waters)
-    return list[i];
-  }
-
-  fun register(order: Order) {
-    myTracker.update(order)
-    submarine.orders.add(order)
-    if (order is Move)
-      submarine.trail.add(submarine.position)
-  }
 }
+
 
 class Map(width: Int, height: Int) {
   val size: Vector2D = Vector2D(width, height)
@@ -248,27 +296,31 @@ class Map(width: Int, height: Int) {
 
 }
 
-class Submarine {
+class Submarine() {
 
   companion object {
     const val TORPEDO_RANGE = 4
     private const val TORPEDO_MAX_COOL_DOWN = 3
   }
 
-  var id: Int = 0
+  /** Current position of the submarine, if known */
   var position: Vector2D = Vector2D()
-  var life: Int = 6
+
+  /** History of life */
+  val life = LifeHistory()
+
+  /** Map of orders of the submarine, key turn id and value list of orders */
+  val orders: OrderHistory = OrderHistory()
+
+  /** Trail of my submarine */
+  val trail: MutableSet<Vector2D> = mutableSetOf()
+
+  /** Cooldowns */
   var torpedoCoolDown: Int = -1
   var sonarCoolDown: Int = -1
   var silenceCoolDown: Int = -1
   var mineCoolDown: Int = -1
   var sonarResult: String = "NA" // Can be Y, N or NA
-
-  /** List of orders of the submarine */
-  val orders = mutableListOf<Order>()
-
-  /** Trail of my submarine */
-  val trail: MutableSet<Vector2D> = mutableSetOf()
 
   /** Available neigh for next move*/
   fun neigh(map: Map): List<Vector2D> {
@@ -279,90 +331,21 @@ class Submarine {
     return neigh
   }
 
+  /** Register an order for a specific turn */
+  fun register(turn: Int, order: Order) {
+    // add to trail move position
+    if (order is Move)
+      trail.add(position)
+    orders.add(turn, order)
+  }
+
   fun isTorpedoReady(): Boolean {
     return this.torpedoCoolDown == 0
   }
-}
-
-class Opponent {
-  var life: Int = 6
-  var orders: List<Order> = listOf()
-}
-
-abstract class Order {
-
-  companion object {
-
-    fun parse(orders: String): List<Order> {
-      val out: MutableList<Order> = mutableListOf()
-      orders.split("|").forEach { out.add(parseOrder(it)) }
-      return out
-    }
-
-    fun parseOrder(order: String): Order {
-      order.trim()
-      if (order == "SURFACE")
-        return Surface()
-      if (order.contains("SURFACE")) {
-        val sector = order.substringAfterLast(" ")
-        return SurfaceSector(sector.toInt())
-      }
-      if (order.contains("MOVE")) {
-        val direction = order.substringAfterLast(" ")
-        return Move(Direction.valueOf(direction))
-      }
-      if (order == "TORPEDO")
-        return LoadTorpedo()
-      return Empty()
-    }
-  }
-
-  abstract fun toOrderString(): String
-}
-
-enum class Direction {
-  N, S, E, W, NA
-}
-
-class Move(val direction: Direction) : Order() {
-  override fun toOrderString(): String {
-    return "MOVE " + direction.name
-  }
-}
-
-class Surface : Order() {
-  override fun toOrderString(): String {
-    return "SURFACE"
-  }
-}
-
-class SurfaceSector(val sector: Int) : Order() {
-  override fun toOrderString(): String {
-    return "SURFACE $sector"
-  }
 
 }
 
-class Torpedo(private val target: Vector2D) : Order() {
-  override fun toOrderString(): String {
-    return "TORPEDO " + target.getIX() + " " + target.getIY()
-  }
-}
-
-class LoadTorpedo : Order() {
-  override fun toOrderString(): String {
-    return "TORPEDO"
-  }
-}
-
-class Empty : Order() {
-  override fun toOrderString(): String {
-    return ""
-  }
-
-}
-
-class SubmarineTracker(val map: Map) {
+class Tracker(val map: Map) {
 
   /** Starting candidate positions */
   val candidates = mutableSetOf<Vector2D>()
@@ -385,6 +368,30 @@ class SubmarineTracker(val map: Map) {
       updateSurface(order)
     // Remove outdated
     candidates.removeAll(outdated)
+  }
+
+  fun outdate(candidate: Vector2D) {
+    candidates.remove(candidate)
+    outdated.add(candidate)
+  }
+
+  fun outdateAllExcept(subset: List<Vector2D>) {
+    for (candidate in candidates) {
+      if (!subset.contains(candidate))
+        outdated.add(candidate)
+    }
+    candidates.removeAll(outdated)
+  }
+
+  fun targetMap(): kotlin.collections.Map<Vector2D, Vector2D> {
+    val targetMap = mutableMapOf<Vector2D, Vector2D>()
+    for (candidate in candidates) {
+      val pos = Vector2D(candidate)
+      for (direction in trail)
+        pos.apply(direction)
+      targetMap[pos] = candidate
+    }
+    return targetMap
   }
 
   fun targets(): List<Vector2D> {
@@ -466,7 +473,7 @@ class SubmarineTracker(val map: Map) {
   }
 }
 
-class AggressiveStrategy(val opponent: SubmarineTracker) {
+class AggressiveStrategy(val opponent: Tracker) {
 
   companion object {
     const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 40
@@ -486,7 +493,7 @@ class AggressiveStrategy(val opponent: SubmarineTracker) {
     return attack(submarine, distances, opponent)
   }
 
-  private fun attack(submarine: Submarine, distances: MutableMap<Vector2D, Int>, opponent: SubmarineTracker): Order {
+  private fun attack(submarine: Submarine, distances: MutableMap<Vector2D, Int>, opponent: Tracker): Order {
     var order: Order = Empty()
 
     // Look for best target : showing the most information ...
@@ -494,10 +501,10 @@ class AggressiveStrategy(val opponent: SubmarineTracker) {
     var bestTarget = Vector2D()
     for ((target, distance) in distances) {
       if (target == submarine.position)
-        continue;
+        continue
 
       // Count targets
-      var nbTarget = 1;
+      var nbTarget = 1
       opponent.map.neighDiagonal(target).forEach { if ((distances.keys).contains(it)) nbTarget++ }
 
       val FACTOR_NB_TARGET = 3
@@ -512,9 +519,13 @@ class AggressiveStrategy(val opponent: SubmarineTracker) {
 
     // Fire ?
     if (submarine.isTorpedoReady()) {
-      if (best > Double.MIN_VALUE && distances[bestTarget]!! < Submarine.TORPEDO_RANGE) {
-        System.err.println("Attack strategy Fire on $bestTarget")
-        order = Torpedo(bestTarget)
+      // Target found
+      if (best > Double.MIN_VALUE) {
+        // In range ?
+        if ((distances[bestTarget]!! - 1) < Submarine.TORPEDO_RANGE) {
+          System.err.println("Attack strategy Fire on $bestTarget")
+          order = Torpedo(bestTarget)
+        }
       }
     }
 
@@ -533,7 +544,7 @@ class AggressiveStrategy(val opponent: SubmarineTracker) {
 
 }
 
-class SilentStrategy(val tracker: SubmarineTracker) {
+class SilentStrategy(val tracker: Tracker) {
 
   /** Compute the most silent next move */
   fun next(submarine: Submarine): Order {
@@ -551,8 +562,124 @@ class SilentStrategy(val tracker: SubmarineTracker) {
   }
 }
 
+class LifeHistory {
 
-class Graph<T>(private val bidirectional: Boolean) {
+  private val history = mutableMapOf<Int, Int>()
+
+  fun add(turn: Int, life: Int) {
+    history[turn] = life
+  }
+
+  fun get(turn: Int): Int {
+    return if (turn <= 0)
+      6
+    else
+      history[turn]!!
+  }
+}
+
+class OrderHistory {
+
+  /** Map of orders of the submarine, key turn id and value list of orders */
+  val orders = mutableMapOf<Int, MutableList<Order>>()
+
+  /** Register a new order */
+  fun add(turn: Int, order: Order) {
+    // register order
+    if (orders.containsKey(turn) && orders[turn] != null)
+      orders[turn]!!.add(order)
+    else {
+      orders[turn] = mutableListOf()
+      orders[turn]!!.add(order)
+    }
+  }
+
+  fun add(turn: Int, orders: List<Order>) {
+    orders.forEach { add(turn, it) }
+  }
+
+  fun get(turn: Int): List<Order> {
+    if (orders.containsKey(turn))
+      return orders[turn]!!
+    return emptyList<Order>()
+  }
+
+}
+
+abstract class Order {
+
+  companion object {
+
+    fun parse(orders: String): List<Order> {
+      val out: MutableList<Order> = mutableListOf()
+      orders.split("|").forEach { out.add(parseOrder(it)) }
+      return out
+    }
+
+    fun parseOrder(order: String): Order {
+      order.trim()
+      if (order == "SURFACE")
+        return Surface()
+      if (order.contains("SURFACE")) {
+        val sector = order.substringAfterLast(" ")
+        return SurfaceSector(sector.toInt())
+      }
+      if (order.contains("MOVE")) {
+        val direction = order.substringAfterLast(" ")
+        return Move(Direction.valueOf(direction))
+      }
+      if (order == "TORPEDO")
+        return LoadTorpedo()
+      return Empty()
+    }
+  }
+
+  abstract fun toOrderString(): String
+}
+
+enum class Direction {
+  N, S, E, W, NA
+}
+
+class Move(val direction: Direction) : Order() {
+  override fun toOrderString(): String {
+    return "MOVE " + direction.name
+  }
+}
+
+class Surface : Order() {
+  override fun toOrderString(): String {
+    return "SURFACE"
+  }
+}
+
+class SurfaceSector(val sector: Int) : Order() {
+  override fun toOrderString(): String {
+    return "SURFACE $sector"
+  }
+
+}
+
+class Torpedo(val target: Vector2D) : Order() {
+  override fun toOrderString(): String {
+    return "TORPEDO " + target.getIX() + " " + target.getIY()
+  }
+}
+
+class LoadTorpedo : Order() {
+  override fun toOrderString(): String {
+    return "TORPEDO"
+  }
+}
+
+class Empty : Order() {
+  override fun toOrderString(): String {
+    return ""
+  }
+
+}
+
+class Graph<T>(private val bidirectional: Boolean = false) {
   val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
 
   fun addEdge(source: T, target: T) {

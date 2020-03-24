@@ -1,11 +1,11 @@
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-internal class SubmarineTrackerTest {
+internal class TrackerTest {
 
   @Test
   fun test_small_empty_map() {
-    val tracker = SubmarineTracker(MapTest.generateSmallEmptyMapTest());
+    val tracker = Tracker(MapTest.generateSmallEmptyMapTest());
     assertEquals(25, tracker.candidates.size)
     tracker.update(Move(Direction.N));
     assertEquals(5, tracker.outdated.size);
@@ -14,7 +14,7 @@ internal class SubmarineTrackerTest {
 
   @Test
   fun test_small_empty_map_2_moves() {
-    val tracker = SubmarineTracker(MapTest.generateSmallEmptyMapTest());
+    val tracker = Tracker(MapTest.generateSmallEmptyMapTest());
     tracker.update(Move(Direction.N));
     tracker.update(Move(Direction.N));
     assertEquals(15, tracker.candidates.size)
@@ -22,7 +22,7 @@ internal class SubmarineTrackerTest {
 
   @Test
   fun test_small_map() {
-    val tracker = SubmarineTracker(MapTest.generateSmallMapTest());
+    val tracker = Tracker(MapTest.generateSmallMapTest());
     tracker.testPrintMap(false)
     assertEquals(17, tracker.candidates.size)
     tracker.update(Move(Direction.N));
@@ -38,7 +38,7 @@ internal class SubmarineTrackerTest {
 
   @Test
   fun test_surface_map1() {
-    val tracker = SubmarineTracker(MapTest.generateMapTest1());
+    val tracker = Tracker(MapTest.generateMapTest1());
     tracker.testPrintMap(false)
     tracker.update(SurfaceSector(1));
     assertEquals(17, tracker.candidates.size)
