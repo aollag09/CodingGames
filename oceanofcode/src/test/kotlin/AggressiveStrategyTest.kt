@@ -47,7 +47,7 @@ internal class AggressiveStrategyTest {
     val strategy = AggressiveStrategy(env.trackerKasakta)
     val order = strategy.next(env.terrible)
     assert(order is Torpedo)
-    assertEquals(Vector2D(1,1), ( order as Torpedo).target)
+    assertEquals(Vector2D(1, 1), (order as Torpedo).target)
   }
 
   @Test
@@ -62,6 +62,6 @@ internal class AggressiveStrategyTest {
     val strategy = AggressiveStrategy(env.trackerKasakta)
     val order = strategy.next(env.terrible)
     assert(order is Torpedo)
-    assertNotEquals(Vector2D(1,1), ( order as Torpedo).target)
+    assertNotEquals(Vector2D(1, 1), (order as Torpedo).target)
   }
 }

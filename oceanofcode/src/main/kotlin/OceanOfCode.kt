@@ -94,15 +94,13 @@ class Env(val map: Map) {
 
   /** Initialize turn after input updates */
   fun initTurn() {
-    trackerKasakta.updateTorpedo(turn, terrible, kasakta)
-    trackerTerrible.updateTorpedo(turn, kasakta, terrible)
+    trackerKasakta.updateTorpedoReach(turn, terrible, kasakta)
+    trackerTerrible.updateTorpedoReach(turn, kasakta, terrible)
   }
 
   fun endTurn() {
     // Update trackers
     trackerTerrible.update(terrible.orders.get(turn))
-
-    // Print opponent tracker map
     trackerKasakta.testPrintMap(true)
   }
 
@@ -383,6 +381,8 @@ class Tracker(val map: Map) {
         updateSurfaceSector(order)
       if (order is Surface)
         updateSurface()
+      if (order is Torpedo)
+        updateTorpedoLaunch(order)
     }
     // Remove outdated
     candidates.removeAll(outdated)
@@ -467,8 +467,15 @@ class Tracker(val map: Map) {
         outdated.add(candidate)
   }
 
+  fun updateTorpedoLaunch(order: Torpedo) {
+    val region = map.torpedoRange(order.target)
+    for (candidate in candidates)
+      if (!region.contains(candidate))
+        outdated.add(candidate)
+  }
+
   /** Compute the torpedo impact on tracker */
-  fun updateTorpedo(turn: Int, from: Submarine, to: Submarine) {
+  fun updateTorpedoReach(turn: Int, from: Submarine, to: Submarine) {
     // Check torpedo impact in previous turn
     var torpedo: Torpedo? = null
     from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }

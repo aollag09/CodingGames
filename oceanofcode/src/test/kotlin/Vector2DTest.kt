@@ -1,4 +1,3 @@
-import Vector2D
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -23,8 +22,8 @@ internal class Vector2DTest {
   }
 
   @Test
-  fun testDirection(){
-    assertEquals(Direction.N, Vector2D( 1,1).direction( Vector2D(1, 0)))
-    assertEquals(Direction.E, Vector2D( 1,1).direction( Vector2D(2, 1)))
+  fun testDirection() {
+    assertEquals(Direction.N, Vector2D(1, 1).direction(Vector2D(1, 0)))
+    assertEquals(Direction.E, Vector2D(1, 1).direction(Vector2D(2, 1)))
   }
 }

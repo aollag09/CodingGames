@@ -28,7 +28,7 @@ class EnvTest {
     env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.trackerKasakta.updateTorpedo(env.turn, env.terrible, env.kasakta)
+    env.trackerKasakta.updateTorpedoReach(env.turn, env.terrible, env.kasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(9, env.trackerKasakta.outdated.size)
   }
@@ -45,7 +45,7 @@ class EnvTest {
     env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.trackerKasakta.updateTorpedo(env.turn, env.terrible, env.kasakta)
+    env.trackerKasakta.updateTorpedoReach(env.turn, env.terrible, env.kasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(17, env.trackerKasakta.outdated.size)
   }
@@ -62,7 +62,7 @@ class EnvTest {
     env.turn = 1
 
     env.trackerKasakta.testPrintMap(false)
-    env.trackerKasakta.updateTorpedo(env.turn, env.terrible, env.kasakta)
+    env.trackerKasakta.updateTorpedoReach(env.turn, env.terrible, env.kasakta)
     env.trackerKasakta.testPrintMap(false)
     assertEquals(1, env.trackerKasakta.candidates.size)
   }
