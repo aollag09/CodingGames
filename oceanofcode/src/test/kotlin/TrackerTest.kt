@@ -115,16 +115,32 @@ internal class TrackerTest {
     assertEquals(13, tracker.candidates.size)
   }
 
-
   @Test
   fun test_silence_empty_big_map_with_trails() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(7,7))
-    tracker.trail.add( Direction.E)
+    tracker.candidates.add(Vector2D(9,7))
+    tracker.trail.add( Direction.S)
+    tracker.trail.add( Direction.W)
+    tracker.trail.add( Direction.W)
     tracker.trail.add( Direction.N)
     tracker.update(Silence())
     tracker.testPrintMap(false)
-    assertEquals(13, tracker.candidates.size)
+    assertEquals(10, tracker.candidates.size)
+  }
+
+  @Test
+  fun test_silence_empty_big_map_with_trails_two_candidates() {
+    val tracker = Tracker(MapTest.generateMapBigEmpty())
+    tracker.candidates.clear()
+    tracker.candidates.add(Vector2D(9,7))
+    tracker.candidates.add(Vector2D(8,7))
+    tracker.trail.add( Direction.S)
+    tracker.trail.add( Direction.W)
+    tracker.trail.add( Direction.W)
+    tracker.trail.add( Direction.N)
+    tracker.update(Silence())
+    tracker.testPrintMap(false)
+    assertEquals(15, tracker.candidates.size)
   }
 }
