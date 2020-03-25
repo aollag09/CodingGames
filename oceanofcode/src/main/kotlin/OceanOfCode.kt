@@ -47,23 +47,13 @@ fun main(args: Array<String>) {
     env.kasakta.register(env.turn, Order.parse(input.nextLine()))
     env.trackerKasakta.update(env.kasakta.orders.get(env.turn))
 
-    // Compute next action
-    var order: Order
-    order = TrapStrategy(env.map).next(env.terrible)
-    if (order is Empty)
-      order = AggressiveStrategy(env.trackerKasakta).next(env.terrible)
-    if (order is Empty)
-      order = SilentStrategy(env.trackerTerrible).next(env.terrible)
-    if (order is Empty)
-      order = SurfaceStrategy().next()
-
-    if (order is Move)
-      println(order.toOrderString() + " TORPEDO")
-    else
-      println(order.toOrderString())
+    // Strategy to compute next moves based on environment
+    val strategy = Strategy(env)
+    val orders = strategy.next()
+    println(Order.toString(orders))
 
     // Register action
-    env.terrible.register(env.turn, order)
+    env.terrible.register(env.turn, orders)
     env.endTurn()
   }
 }
@@ -352,6 +342,10 @@ class Submarine {
     return this.torpedoCoolDown == 0
   }
 
+  fun isSilenceReady(): Boolean {
+    return this.silenceCoolDown == 0
+  }
+
 }
 
 class Tracker(val map: Map) {
@@ -593,15 +587,52 @@ class Tracker(val map: Map) {
   }
 }
 
-class Strategy(env: Env) {
+class Strategy(val env: Env) {
 
   fun next(): List<Order> {
-    return listOf()
+    val orders = mutableListOf<Order>()
+
+    // Surface action
+    val surface = TrapStrategy(env.map).next(env.terrible)
+    if (surface !is Empty)
+      orders.add(surface)
+
+    // Compute move action
+    var move: Order
+    move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
+    if (move is Empty)
+      move = SilentStrategy(env.trackerTerrible).next(env.terrible)
+    if (move is Empty)
+      move = SurfaceStrategy().next()
+
+    // Load weapon on move action
+    if (move is Move)
+      LoadStrategy(env.terrible).load(move)
+
+    if (move !is Empty)
+      orders.add(move)
+
+    // Fire
+    val fire = FireStrategy(env.trackerKasakta).next(env.terrible)
+    if (fire !is Empty)
+      orders.add(fire)
+
+    return orders
+  }
+}
+
+class LoadStrategy(val submarine: Submarine) {
+
+  fun load(order: Move) {
+    if (!submarine.isTorpedoReady())
+      order.weapon = Weapon.TORPEDO
+    if (!submarine.isSilenceReady())
+      order.weapon = Weapon.SILENCE
   }
 
 }
 
-class AggressiveStrategy(val opponent: Tracker) {
+class FireStrategy(val opponent: Tracker) {
 
   companion object {
     const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 40
@@ -610,11 +641,8 @@ class AggressiveStrategy(val opponent: Tracker) {
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
     var order: Order = Empty()
-    if (opponent.candidates.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+    if (opponent.candidates.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY)
       order = fire(submarine, opponent)
-      if (order is Empty)
-        order = naiveApproach(submarine, opponent)
-    }
     return order
   }
 
@@ -669,8 +697,12 @@ class AggressiveStrategy(val opponent: Tracker) {
     return order
   }
 
+}
+
+class AggressiveNaiveApproach() {
+
   /** Try an approach on the best target */
-  private fun naiveApproach(submarine: Submarine, opponent: Tracker): Order {
+  fun next(submarine: Submarine, opponent: Tracker): Order {
     var best = Int.MAX_VALUE
     var bestDirection = Direction.NA
     for (target in opponent.targets()) {
@@ -725,53 +757,16 @@ class TrapStrategy(val map: Map) {
   }
 }
 
-class LifeHistory {
-
-  private val history = mutableMapOf<Int, Int>()
-
-  fun add(turn: Int, life: Int) {
-    history[turn] = life
-  }
-
-  fun get(turn: Int): Int {
-    return if (turn <= 0)
-      6
-    else
-      history[turn]!!
-  }
-}
-
-class OrderHistory {
-
-  /** Map of orders of the submarine, key turn id and value list of orders */
-  val orders = mutableMapOf<Int, MutableList<Order>>()
-
-  /** Register a new order */
-  fun add(turn: Int, order: Order) {
-    // register order
-    if (orders.containsKey(turn) && orders[turn] != null)
-      orders[turn]!!.add(order)
-    else {
-      orders[turn] = mutableListOf()
-      orders[turn]!!.add(order)
-    }
-  }
-
-  fun add(turn: Int, orders: List<Order>) {
-    orders.forEach { add(turn, it) }
-  }
-
-  fun get(turn: Int): List<Order> {
-    if (orders.containsKey(turn))
-      return orders[turn]!!
-    return emptyList()
-  }
-
-}
-
 abstract class Order {
 
   companion object {
+
+    fun toString(orders: List<Order>): String {
+      var s = ""
+      for (order in orders)
+        s += order.toOrderString() + " | "
+      return s.removeSuffix(" | ")
+    }
 
     fun parse(orders: String): List<Order> {
       val out: MutableList<Order> = mutableListOf()
@@ -839,7 +834,7 @@ enum class Weapon {
   TORPEDO, SONAR, SILENCE, MINE, NA
 }
 
-class Move(val direction: Direction, val weapon: Weapon = Weapon.NA) : Order() {
+class Move(val direction: Direction, var weapon: Weapon = Weapon.NA) : Order() {
   override fun toOrderString(): String {
     return if (weapon != Weapon.NA)
       "MOVE " + direction.name + " " + weapon.name
@@ -900,6 +895,50 @@ class Trigger(val target: Vector2D) : Order() {
 class Empty : Order() {
   override fun toOrderString(): String {
     return ""
+  }
+
+}
+
+class LifeHistory {
+
+  private val history = mutableMapOf<Int, Int>()
+
+  fun add(turn: Int, life: Int) {
+    history[turn] = life
+  }
+
+  fun get(turn: Int): Int {
+    return if (turn <= 0)
+      6
+    else
+      history[turn]!!
+  }
+}
+
+class OrderHistory {
+
+  /** Map of orders of the submarine, key turn id and value list of orders */
+  val orders = mutableMapOf<Int, MutableList<Order>>()
+
+  /** Register a new order */
+  fun add(turn: Int, order: Order) {
+    // register order
+    if (orders.containsKey(turn) && orders[turn] != null)
+      orders[turn]!!.add(order)
+    else {
+      orders[turn] = mutableListOf()
+      orders[turn]!!.add(order)
+    }
+  }
+
+  fun add(turn: Int, orders: List<Order>) {
+    orders.forEach { add(turn, it) }
+  }
+
+  fun get(turn: Int): List<Order> {
+    if (orders.containsKey(turn))
+      return orders[turn]!!
+    return emptyList()
   }
 
 }
