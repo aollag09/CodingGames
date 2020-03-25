@@ -7,7 +7,6 @@ internal class OrderTest {
   fun parseOrder() {
     assert(Order.parseOrder("SURFACE") is Surface)
     assert(Order.parseOrder(" SURFACE 1") is SurfaceSector)
-    assert(Order.parseOrder("TORPEDO") is LoadTorpedo)
 
     val test: List<String> = arrayListOf("SURFACE",
         "SURFACE 3",
@@ -16,9 +15,20 @@ internal class OrderTest {
         "MOVE E",
         "MOVE S",
         "MOVE W",
-        "TORPEDO",
+        "TORPEDO 1 3",
         "SILENCE",
-        "SILENCE N 3")
+        "SILENCE N 3",
+        "MOVE N TORPEDO",
+        "MOVE N SILENCE",
+        "MOVE N MINE",
+        "MOVE S",
+        "SONAR 3",
+        "SONAR 9",
+        "MINE",
+        "MINE N",
+        "MINE S",
+        "TRIGGER 1 2",
+        "TRIGGER 10 12")
     test.forEach {
       assertEquals(it, Order.parseOrder(it).toOrderString())
     }

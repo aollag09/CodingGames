@@ -456,7 +456,7 @@ class Tracker(val map: Map) {
   }
 
   private fun updateSurface() {
-    val targets = targets();
+    val targets = targets()
     candidates.clear()
     candidates.addAll(targets)
     trail.clear()
@@ -593,6 +593,14 @@ class Tracker(val map: Map) {
   }
 }
 
+class Strategy(env: Env) {
+
+  fun next(): List<Order> {
+    return listOf()
+  }
+
+}
+
 class AggressiveStrategy(val opponent: Tracker) {
 
   companion object {
@@ -640,7 +648,7 @@ class AggressiveStrategy(val opponent: Tracker) {
             var evaluation = targetPercentage
             if (realDistance == 0)
               continue // will not fire on me please
-            if (quickDistance < 1.5 )
+            if (quickDistance < 1.5)
               evaluation -= 0.5 // accept to fire next to me but with penalty
 
             if (evaluation > best) {
@@ -780,11 +788,19 @@ abstract class Order {
         return SurfaceSector(sector.toInt())
       }
       if (order.contains("MOVE")) {
-        val direction = order.substringAfterLast(" ")
-        return Move(Direction.valueOf(direction))
+        val params = order.split(" ")
+        val direction = Direction.valueOf(params[1])
+        var weapon = Weapon.NA
+        if (params.size > 2)
+          weapon = Weapon.valueOf(params[2])
+        return Move(direction, weapon)
       }
-      if (order == "TORPEDO")
-        return LoadTorpedo()
+      if (order.contains("TORPEDO")) {
+        val params = order.substringAfter(" ")
+        val x = params.substringBefore(" ").toInt()
+        val y = params.substringAfter(" ").toInt()
+        return Torpedo(Vector2D(x, y))
+      }
       if (order == "SILENCE")
         return Silence()
       if (order.contains("SILENCE")) {
@@ -792,6 +808,21 @@ abstract class Order {
         val direction = Direction.valueOf(params.substringBefore(" "))
         val distance = params.substringAfter(" ").toInt()
         return Silence(direction, distance)
+      }
+      if (order.contains("SONAR")) {
+        return Sonar(order.substringAfter(" ").toInt())
+      }
+      if (order.contains("MINE")) {
+        val params = order.split(" ")
+        var direction: Direction? = null
+        if (params.size > 1)
+          direction = Direction.valueOf(params[1])
+        return Mine(direction)
+      }
+      if (order.contains("TRIGGER")) {
+        val params = order.split(" ")
+        val target = Vector2D(params[1].toInt(), params[2].toInt())
+        return Trigger(target)
       }
       return Empty()
     }
@@ -804,9 +835,16 @@ enum class Direction {
   N, S, E, W, NA
 }
 
-class Move(val direction: Direction) : Order() {
+enum class Weapon {
+  TORPEDO, SONAR, SILENCE, MINE, NA
+}
+
+class Move(val direction: Direction, val weapon: Weapon = Weapon.NA) : Order() {
   override fun toOrderString(): String {
-    return "MOVE " + direction.name
+    return if (weapon != Weapon.NA)
+      "MOVE " + direction.name + " " + weapon.name
+    else
+      "MOVE " + direction.name
   }
 }
 
@@ -829,12 +867,6 @@ class Torpedo(val target: Vector2D) : Order() {
   }
 }
 
-class LoadTorpedo : Order() {
-  override fun toOrderString(): String {
-    return "TORPEDO"
-  }
-}
-
 class Silence(val direction: Direction, val distance: Int) : Order() {
 
   constructor() : this(Direction.NA, 0)
@@ -844,6 +876,24 @@ class Silence(val direction: Direction, val distance: Int) : Order() {
       "SILENCE"
     else
       "SILENCE $direction $distance"
+  }
+}
+
+class Sonar(val sector: Int) : Order() {
+  override fun toOrderString(): String {
+    return "SONAR $sector"
+  }
+}
+
+class Mine(val direction: Direction? = null) : Order() {
+  override fun toOrderString(): String {
+    return if (direction == null) "MINE" else "MINE " + direction.name
+  }
+}
+
+class Trigger(val target: Vector2D) : Order() {
+  override fun toOrderString(): String {
+    return "TRIGGER " + target.getIX() + " " + target.getIY()
   }
 }
 
