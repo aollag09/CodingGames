@@ -456,11 +456,14 @@ class Tracker(val map: Map) {
   }
 
   private fun updateSurface() {
+    val targets = targets();
+    candidates.clear()
+    candidates.addAll(targets)
     trail.clear()
   }
 
   private fun updateSurfaceSector(order: SurfaceSector) {
-    trail.clear()
+    updateSurface()
     val sections = map.getWaterSection(order.sector)
     for (candidate in candidates)
       if (!sections.contains(candidate))
@@ -637,7 +640,7 @@ class AggressiveStrategy(val opponent: Tracker) {
             var evaluation = targetPercentage
             if (realDistance == 0)
               continue // will not fire on me please
-            if (realDistance == 1)
+            if (quickDistance < 1.5 )
               evaluation -= 0.5 // accept to fire next to me but with penalty
 
             if (evaluation > best) {

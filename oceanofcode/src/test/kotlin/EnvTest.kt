@@ -67,12 +67,4 @@ class EnvTest {
     assertEquals(1, env.trackerKasakta.candidates.size)
   }
 
-  @Test
-  fun test_surface() {
-    val env = generateEnvTest1()
-    env.kasakta.register(0, SurfaceSector(1))
-    env.trackerKasakta.update(SurfaceSector(1))
-    env.trackerKasakta.testPrintMap(false)
-    assertEquals(17, env.trackerKasakta.candidates.size)
-  }
 }
