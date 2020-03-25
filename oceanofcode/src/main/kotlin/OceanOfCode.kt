@@ -601,23 +601,22 @@ class Strategy(val env: Env) {
     val surface = TrapStrategy(env.map).next(env.terrible)
     if (surface !is Empty)
       orders.add(surface)
+    else {
+      // Compute move action
+      var move: Order
+      move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
+      if (move is Empty)
+        move = SilentStrategy(env.trackerTerrible).next(env.terrible)
+      if (move is Empty)
+        move = SurfaceStrategy().next()
 
-    val start = System.currentTimeMillis()
-    // Compute move action
-    var move: Order
-    move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
-    if (move is Empty)
-      move = SilentStrategy(env.trackerTerrible).next(env.terrible)
-    if (move is Empty)
-      move = SurfaceStrategy().next()
+      // Load weapon on move action
+      if (move is Move)
+        LoadStrategy(env.terrible).load(move)
 
-    // Load weapon on move action
-    if (move is Move)
-      LoadStrategy(env.terrible).load(move)
-
-    if (move !is Empty)
-      orders.add(move)
-
+      if (move !is Empty)
+        orders.add(move)
+    }
     return orders
   }
 }
