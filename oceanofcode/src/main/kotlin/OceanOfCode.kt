@@ -198,13 +198,30 @@ class Map(width: Int, height: Int) {
   /** List position in around target */
   fun torpedoRange(target: Vector2D): Set<Vector2D> {
     val range = mutableSetOf<Vector2D>()
-    for (dx in -Submarine.TORPEDO_RANGE..Submarine.TORPEDO_RANGE)
-      for (dy in -Submarine.TORPEDO_RANGE..Submarine.TORPEDO_RANGE)
-        if (abs(dx) + abs(dy) <= Submarine.TORPEDO_RANGE) {
-          val new = Vector2D(target.getIX() + dx, target.getIY() + dy)
-          if (isWater(new))
-            range.add(new)
+    val open = PriorityQueue<Vector2D>(kotlin.Comparator
+    { t1, t2 -> (t1.distance(target) - t2.distance(target)).toInt() })
+    val dist = mutableMapOf<Vector2D, Int>()
+    dist[target] = 0
+    open.add(target)
+    while (open.isNotEmpty()) {
+      val current = open.poll()
+
+      // Is in the range
+      if (dist[current]!! <= 4) {
+        range.add(current)
+        for (neighbour in neigh(current)) {
+
+          // Update distance
+          if (dist[neighbour] != null)
+            dist[neighbour] = min(dist[neighbour]!!, dist[current]!! + 1)
+          else
+            dist[neighbour] = dist[current]!! + 1
+
+          if (!range.contains(neighbour) && !open.contains(neighbour))
+            open.add(neighbour)
         }
+      }
+    }
     return range
   }
 

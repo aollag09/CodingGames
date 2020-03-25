@@ -99,7 +99,7 @@ internal class TrackerTest {
     val tracker = Tracker(MapTest.generateMapTest1())
     tracker.update(Torpedo(Vector2D(7, 7)))
     tracker.testPrintMap(false)
-    assertEquals(28, tracker.candidates.size)
+    assertEquals(25, tracker.candidates.size)
   }
 
   @Test

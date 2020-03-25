@@ -165,7 +165,7 @@ class MapTest {
     tracker.candidates.clear()
     tracker.candidates.addAll(range)
     tracker.testPrintMap(false)
-    assertEquals(28, range.size)
+    assertEquals(25, range.size)
   }
 
 }
