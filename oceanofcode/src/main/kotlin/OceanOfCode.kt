@@ -198,30 +198,13 @@ class Map(width: Int, height: Int) {
   /** List position in around target */
   fun torpedoRange(target: Vector2D): Set<Vector2D> {
     val range = mutableSetOf<Vector2D>()
-    val open = PriorityQueue<Vector2D>(kotlin.Comparator
-    { t1, t2 -> (t1.distance(target) - t2.distance(target)).toInt() })
-    val dist = mutableMapOf<Vector2D, Int>()
-    dist[target] = 0
-    open.add(target)
-    while (open.isNotEmpty()) {
-      val current = open.poll()
-
-      // Is in the range
-      if (dist[current]!! <= 4) {
-        range.add(current)
-        for (neighbour in neigh(current)) {
-
-          // Update distance
-          if (dist[neighbour] != null)
-            dist[neighbour] = min(dist[neighbour]!!, dist[current]!! + 1)
-          else
-            dist[neighbour] = dist[current]!! + 1
-
-          if (!range.contains(neighbour) && !open.contains(neighbour))
-            open.add(neighbour)
+    for (dx in -Submarine.TORPEDO_RANGE..Submarine.TORPEDO_RANGE)
+      for (dy in -Submarine.TORPEDO_RANGE..Submarine.TORPEDO_RANGE)
+        if (abs(dx) + abs(dy) <= Submarine.TORPEDO_RANGE) {
+          val new = Vector2D(target.getIX() + dx, target.getIY() + dy)
+          if (isWater(new))
+            range.add(new)
         }
-      }
-    }
     return range
   }
 
@@ -592,11 +575,17 @@ class Strategy(val env: Env) {
   fun next(): List<Order> {
     val orders = mutableListOf<Order>()
 
+    // Fire
+    val fire = FireStrategy(env.trackerKasakta).next(env.terrible)
+    if (fire !is Empty)
+      orders.add(fire)
+
     // Surface action
     val surface = TrapStrategy(env.map).next(env.terrible)
     if (surface !is Empty)
       orders.add(surface)
 
+    val start = System.currentTimeMillis()
     // Compute move action
     var move: Order
     move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
@@ -611,11 +600,6 @@ class Strategy(val env: Env) {
 
     if (move !is Empty)
       orders.add(move)
-
-    // Fire
-    val fire = FireStrategy(env.trackerKasakta).next(env.terrible)
-    if (fire !is Empty)
-      orders.add(fire)
 
     return orders
   }
@@ -635,13 +619,13 @@ class LoadStrategy(val submarine: Submarine) {
 class FireStrategy(val opponent: Tracker) {
 
   companion object {
-    const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 40
+    const val MINIMUM_TARGET_FOR_FIRE_STRATEGY = 30
   }
 
   /** Compute the most aggressive next move*/
   fun next(submarine: Submarine): Order {
     var order: Order = Empty()
-    if (opponent.candidates.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY)
+    if (opponent.candidates.size < MINIMUM_TARGET_FOR_FIRE_STRATEGY)
       order = fire(submarine, opponent)
     return order
   }
@@ -701,25 +685,34 @@ class FireStrategy(val opponent: Tracker) {
 
 class AggressiveNaiveApproach() {
 
+  companion object {
+    const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 30
+  }
+
   /** Try an approach on the best target */
   fun next(submarine: Submarine, opponent: Tracker): Order {
-    var best = Int.MAX_VALUE
-    var bestDirection = Direction.NA
-    for (target in opponent.targets()) {
-      val quickDist = submarine.position.distance(target)
-      if (quickDist < best) {
-        val path = opponent.map.path(submarine.position, target, submarine.trail)
-        if (path != null && path.size > 1) {
-          val realDist = path.size
-          if (realDist < best) {
-            best = realDist
-            bestDirection = submarine.position.direction(path[1])
+    val targets = opponent.targets()
+    if (targets.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
+      var best = Int.MAX_VALUE
+      var bestDirection = Direction.NA
+      for (target in targets) {
+        val quickDist = submarine.position.distance(target)
+        if (quickDist < best) {
+          val path = opponent.map.path(submarine.position, target, submarine.trail)
+          if (path != null && path.size > 1) {
+            val realDist = path.size
+            if (realDist < best) {
+              best = realDist
+              bestDirection = submarine.position.direction(path[1])
+            }
           }
         }
       }
+      if (bestDirection != Direction.NA) {
+        System.err.println("Aggressive MOVE strategy, move to $bestDirection at distance $best")
+        return Move(bestDirection)
+      }
     }
-    if (bestDirection != Direction.NA)
-      return Move(bestDirection)
     return Empty()
   }
 }

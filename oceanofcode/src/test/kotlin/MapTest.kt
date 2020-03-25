@@ -161,10 +161,11 @@ class MapTest {
     val map = generateMapTest1()
     val range = map.torpedoRange(Vector2D(7, 7))
     val tracker = Tracker(map)
+    tracker.testPrintMap(false)
     tracker.candidates.clear()
     tracker.candidates.addAll(range)
     tracker.testPrintMap(false)
-    assertEquals(25, range.size)
+    assertEquals(28, range.size)
   }
 
 }
