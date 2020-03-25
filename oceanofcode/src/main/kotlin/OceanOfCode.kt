@@ -400,6 +400,7 @@ class Tracker(val map: Map) {
     candidates.removeAll(outdated)
   }
 
+  /** Map of target => candidate */
   fun targetMap(): kotlin.collections.Map<Vector2D, Vector2D> {
     val targetMap = mutableMapOf<Vector2D, Vector2D>()
     for (candidate in candidates) {
@@ -466,8 +467,9 @@ class Tracker(val map: Map) {
 
   fun updateTorpedoLaunch(order: Torpedo) {
     val region = map.torpedoRange(order.target)
-    for (candidate in candidates)
-      if (!region.contains(candidate))
+    val targetMap = targetMap()
+    for ((target, candidate) in targetMap)
+      if (!region.contains(target))
         outdated.add(candidate)
   }
 
