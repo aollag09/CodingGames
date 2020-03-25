@@ -116,6 +116,18 @@ internal class TrackerTest {
   }
 
   @Test
+  fun test_silence_map1_with_trail() {
+    val tracker = Tracker(MapTest.generateMapTest1())
+    tracker.candidates.clear()
+    tracker.candidates.add(Vector2D(7,8))
+    tracker.trail.add( Direction.N)
+    tracker.update(Silence())
+    tracker.testPrintMap(false)
+    assertEquals(6, tracker.candidates.size)
+  }
+
+
+  @Test
   fun test_silence_empty_big_map_with_trails() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
