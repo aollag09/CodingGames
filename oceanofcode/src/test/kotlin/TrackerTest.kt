@@ -190,4 +190,20 @@ internal class TrackerTest {
     tracker.testPrintMap(false)
     assertEquals(20, tracker.candidates.size)
   }
+
+  @Test
+  fun test_surface_silence_map_2_several_candidates() {
+    val tracker = Tracker(MapTest.generateMapTest2())
+    tracker.candidates.clear()
+    tracker.candidates.add(Vector2D(9, 7))
+    tracker.candidates.add(Vector2D(8, 7))
+    tracker.candidates.add(Vector2D(3, 1))
+    tracker.candidates.add(Vector2D(10, 1))
+    tracker.candidates.add(Vector2D(1, 10))
+    tracker.update(Move(Direction.S))
+    tracker.update(Surface())
+    tracker.update(Silence())
+    tracker.testPrintMap(false)
+    assertEquals(47, tracker.candidates.size)
+  }
 }
