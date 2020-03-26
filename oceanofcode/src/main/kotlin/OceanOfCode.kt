@@ -638,8 +638,8 @@ class DefenseStrategy(val submarine: Submarine) {
   fun next(): Order {
     var order: Order = Empty()
     val turn = submarine.life.size()
-    if (turn > 2) {
-      var deltaLife = submarine.life.get(turn - 1) - submarine.life.get(turn - 2)
+    if (turn >= 2) {
+      var deltaLife = submarine.life.get(turn-1) - submarine.life.get(turn)
 
       // Check if submarine has surfaced
       var surface = false

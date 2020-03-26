@@ -1,16 +1,18 @@
 import org.junit.jupiter.api.Test
 
-import org.junit.jupiter.api.Assertions.*
-
 internal class DefenseStrategyTest {
 
   @Test
   operator fun next() {
     val env = EnvTest.generateEnvTest1()
-    env.turn ++
+    env.turn++
+    env.terrible.life.add(env.turn, 6)
     env.initTurn()
-    env.endTurn()
-    env.turn ++
+    env.turn++
+    env.terrible.life.add(env.turn, 5)
+    env.terrible.silenceCoolDown = 0
     env.initTurn()
+
+    assert(DefenseStrategy(env.terrible).next() is Silence)
   }
 }
