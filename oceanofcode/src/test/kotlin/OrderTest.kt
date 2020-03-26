@@ -28,7 +28,9 @@ internal class OrderTest {
         "MINE N",
         "MINE S",
         "TRIGGER 1 2",
-        "TRIGGER 10 12")
+        "TRIGGER 10 12",
+        "MSG 1 5",
+        "MSG Ca va bien ?")
     test.forEach {
       assertEquals(it, Order.parseOrder(it).toOrderString())
     }

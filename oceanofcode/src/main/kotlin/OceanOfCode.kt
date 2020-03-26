@@ -660,6 +660,14 @@ class Strategy(val env: Env) {
     if (mine !is Empty)
       orders.add(mine)
 
+    // Trigger strategy
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    if (trigger !is Empty)
+      orders.add(trigger)
+
+    // Message strategy
+    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).next())
+
     return orders
   }
 
@@ -880,7 +888,6 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
     const val MINIMUM_TARGET_FOR_TRIGGER_STRATEGY = 16
   }
 
-
   fun next(): Order {
     var order: Order = Empty()
     if (tracker.candidates.size <= MINIMUM_TARGET_FOR_TRIGGER_STRATEGY)
@@ -926,6 +933,14 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
 
   }
 
+}
+
+class MessageStrategy(val tracker1: Tracker, val tracker2: Tracker) {
+
+  fun next(): Message {
+    val message = tracker1.candidates.size.toString() + " " + tracker2.candidates.size.toString()
+    return Message(message)
+  }
 }
 
 abstract class Order {
@@ -990,6 +1005,10 @@ abstract class Order {
         val target = Vector2D(params[1].toInt(), params[2].toInt())
         return Trigger(target)
       }
+      if (order.contains("MSG")) {
+        return Message(order.substringAfter(" "))
+      }
+
       return Empty()
     }
   }
@@ -1059,6 +1078,12 @@ class Mine(val direction: Direction? = null) : Order() {
 class Trigger(val target: Vector2D) : Order() {
   override fun toOrderString(): String {
     return "TRIGGER " + target.getIX() + " " + target.getIY()
+  }
+}
+
+class Message(val message: String) : Order() {
+  override fun toOrderString(): String {
+    return "MSG $message"
   }
 }
 
