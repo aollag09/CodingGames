@@ -4,12 +4,7 @@ internal class InvisibleStrategyTest {
 
   @Test
   operator fun next() {
-    /*
-    val tracker = SubmarineTracker(MapTest.generateSmallMapTest());
-    val silentStrategy = SilentStrategy(tracker);
-    val action = silentStrategy.next(Vector2D(2, 3))
-    assertNotNull(action)
-    assertEquals(Direction.W, action.direction)
-     */
+    val env = EnvTest.generateEnvTest1()
+    InvisibleStrategy( env.terrible, env.trackerKasakta ).apply()
   }
 }

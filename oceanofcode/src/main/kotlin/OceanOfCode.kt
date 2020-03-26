@@ -119,7 +119,7 @@ class Env(val map: Map) {
 
 class Map(width: Int, height: Int) {
   val size: Vector2D = Vector2D(width, height)
-  private val islands: MutableSet<Vector2D> = HashSet()
+  private val islands = mutableSetOf<Vector2D>()
 
   fun isIsland(pos: Vector2D): Boolean {
     return islands.contains(pos)
@@ -459,9 +459,9 @@ class Tracker(val map: Map) {
   }
 
   /** Evaluate next move to known how many outdated position will be created */
-  fun evaluate(direction: Direction): Int {
+  fun evaluate(direction: Direction, targets: List<Vector2D> = targets()): Int {
     var evaluation = 0
-    for (target in targets())
+    for (target in targets)
       if (!map.isWater(target.getApplied(direction)))
         evaluation++
     return evaluation
@@ -622,58 +622,74 @@ class Tracker(val map: Map) {
   }
 }
 
+abstract class AbstractStrategy {
+
+  abstract fun apply(): Order
+
+  abstract fun name(): String
+
+  fun applyTimer(): Order {
+    val start = System.currentTimeMillis()
+    val order: Order = apply()
+    val time = System.currentTimeMillis() - start
+    System.err.println("Strategy " + name() + " in " + time + " ms")
+    return order
+  }
+
+}
+
 class Strategy(val env: Env) {
 
   fun next(): List<Order> {
     val orders = mutableListOf<Order>()
 
     // Fire
-    val fire = FireStrategy(env.terrible, env.trackerKasakta).next()
+    val fire = FireStrategy(env.terrible, env.trackerKasakta).applyTimer()
     if (fire !is Empty)
       orders.add(fire)
 
     // Surface action
-    val surface = TrapStrategy(env.terrible, env.map).next()
+    val surface = TrapStrategy(env.terrible, env.map).applyTimer()
     if (surface !is Empty)
       orders.add(surface)
     else {
       // Compute move action
       var move: Order
-      move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
+      move = AggressiveApproach(env.terrible, env.trackerKasakta).applyTimer()
       if (move is Empty)
-        move = InvisibleStrategy(env.trackerTerrible).next(env.terrible)
+        move = InvisibleStrategy(env.terrible, env.trackerTerrible).applyTimer()
       if (move is Empty)
-        move = SurfaceStrategy().next()
+        move = SurfaceStrategy().applyTimer()
 
       // Load weapon on move action
       if (move is Move)
         LoadStrategy(env.terrible).load(move)
 
+      // Add move action
       if (move !is Empty)
         orders.add(move)
     }
 
     // Defense strategy
-    val defense = DefenseStrategy(env.terrible).next()
+    val defense = DefenseStrategy(env.terrible).applyTimer()
     if (defense !is Empty)
       orders.add(defense)
 
     // Mine strategy
-    val mine = MineStrategy(env.terrible, env.trackerKasakta).next()
+    val mine = MineStrategy(env.terrible, env.trackerKasakta).applyTimer()
     if (mine !is Empty)
       orders.add(mine)
 
     // Trigger strategy
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).applyTimer()
     if (trigger !is Empty)
       orders.add(trigger)
 
     // Message strategy
-    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).next())
+    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).applyTimer())
 
     return orders
   }
-
 }
 
 class LoadStrategy(val submarine: Submarine) {
@@ -689,9 +705,9 @@ class LoadStrategy(val submarine: Submarine) {
 
 }
 
-class DefenseStrategy(val submarine: Submarine) {
+class DefenseStrategy(val submarine: Submarine) : AbstractStrategy() {
 
-  fun next(): Order {
+  override fun apply(): Order {
     var order: Order = Empty()
     val turn = submarine.life.size()
     if (turn >= 2) {
@@ -711,6 +727,10 @@ class DefenseStrategy(val submarine: Submarine) {
     return order
   }
 
+  override fun name(): String {
+    return "Defense Strategy"
+  }
+
   private fun silence(): Silence {
     // Fake move
     return Silence(Direction.N, 0)
@@ -718,18 +738,22 @@ class DefenseStrategy(val submarine: Submarine) {
 
 }
 
-class FireStrategy(val submarine: Submarine, val tracker: Tracker) {
+class FireStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStrategy() {
 
   companion object {
     const val MINIMUM_TARGET_FOR_FIRE_STRATEGY = 15
   }
 
   /** Compute the most aggressive next move*/
-  fun next(): Order {
+  override fun apply(): Order {
     var order: Order = Empty()
     if (tracker.candidates.size < MINIMUM_TARGET_FOR_FIRE_STRATEGY)
       order = fire()
     return order
+  }
+
+  override fun name(): String {
+    return "Fire Strategy"
   }
 
   /** Try to fire a torpedo and best target */
@@ -785,14 +809,14 @@ class FireStrategy(val submarine: Submarine, val tracker: Tracker) {
 
 }
 
-class AggressiveNaiveApproach() {
+class AggressiveApproach(val submarine: Submarine, val opponent: Tracker) : AbstractStrategy() {
 
   companion object {
     const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 25
   }
 
   /** Try an approach on the best target */
-  fun next(submarine: Submarine, opponent: Tracker): Order {
+  override fun apply(): Order {
     val targets = opponent.targets()
     if (targets.size < MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY) {
       var best = Int.MAX_VALUE
@@ -817,16 +841,21 @@ class AggressiveNaiveApproach() {
     }
     return Empty()
   }
+
+  override fun name(): String {
+    return "Aggressive Approach"
+  }
 }
 
-class InvisibleStrategy(val tracker: Tracker) {
+class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStrategy() {
 
   /** Compute the most silent next move */
-  fun next(submarine: Submarine): Order {
+  override fun apply(): Order {
     var best = Vector2D()
     var silence = Int.MAX_VALUE
+    val targets = tracker.targets()
     for (neigh in submarine.neigh(tracker.map)) {
-      val evaluation = tracker.evaluate(submarine.position.direction(neigh))
+      val evaluation = tracker.evaluate(submarine.position.direction(neigh), targets)
       if (evaluation < silence) {
         val direction = submarine.position.direction(neigh)
         if (!submarine.isTrapDirection(tracker.map, direction)) {
@@ -838,26 +867,40 @@ class InvisibleStrategy(val tracker: Tracker) {
     System.err.println("Silent strategy, move to $best")
     return Move(submarine.position.direction(best))
   }
+
+  override fun name(): String {
+    return "Invisible Strategy"
+  }
 }
 
-class SurfaceStrategy {
-  fun next(): Order {
+class SurfaceStrategy : AbstractStrategy() {
+  override fun apply(): Order {
     return Surface()
   }
-}
 
-class TrapStrategy(val submarine: Submarine, val map: Map) {
-  fun next(): Order {
-    return if (submarine.neigh(map).isEmpty())
-      Surface()
-    else
-      Empty()
+  override fun name(): String {
+    return "Surface Strategy"
   }
 }
 
-class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
+class TrapStrategy(val submarine: Submarine, val map: Map) : AbstractStrategy() {
 
-  fun next(): Order {
+  override fun apply(): Order {
+    var order: Order = Empty()
+    if (submarine.trail.size > 8) // optimisation
+      if (submarine.neigh(map).isEmpty())
+        order = Surface()
+    return order
+  }
+
+  override fun name(): String {
+    return "Trap Strategy"
+  }
+}
+
+class MineStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStrategy() {
+
+  override fun apply(): Order {
     var order: Order = Empty()
     if (submarine.isMineReady()) {
       var best = 0
@@ -883,19 +926,27 @@ class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
     return order
   }
 
+  override fun name(): String {
+    return "Mine Strategy"
+  }
+
 }
 
-class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
+class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStrategy() {
 
   companion object {
     const val MINIMUM_TARGET_FOR_TRIGGER_STRATEGY = 16
   }
 
-  fun next(): Order {
+  override fun apply(): Order {
     var order: Order = Empty()
     if (tracker.candidates.size <= MINIMUM_TARGET_FOR_TRIGGER_STRATEGY)
       order = trigger()
     return order
+  }
+
+  override fun name(): String {
+    return "Trigger Strategy"
   }
 
   private fun trigger(): Order {
@@ -937,11 +988,15 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
 
 }
 
-class MessageStrategy(val tracker1: Tracker, val tracker2: Tracker) {
+class MessageStrategy(val tracker1: Tracker, val tracker2: Tracker) : AbstractStrategy() {
 
-  fun next(): Message {
+  override fun apply(): Message {
     val message = tracker1.candidates.size.toString() + " " + tracker2.candidates.size.toString()
     return Message(message)
+  }
+
+  override fun name(): String {
+    return "Message Strategy"
   }
 }
 

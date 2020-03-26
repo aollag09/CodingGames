@@ -14,7 +14,7 @@ internal class FireStrategyTest {
 
     env.terrible.position = Vector2D()
     val strategy = FireStrategy(env.terrible, env.trackerKasakta)
-    val order = strategy.next()
+    val order = strategy.apply()
     assert(order is Empty)
   }
 
@@ -30,7 +30,7 @@ internal class FireStrategyTest {
     env.terrible.torpedoCoolDown = 0
 
     val strategy = FireStrategy(env.terrible, env.trackerKasakta)
-    val order = strategy.next()
+    val order = strategy.apply()
     assert(order is Torpedo)
   }
 
@@ -45,7 +45,7 @@ internal class FireStrategyTest {
     env.terrible.torpedoCoolDown = 0
 
     val strategy = FireStrategy(env.terrible, env.trackerKasakta)
-    val order = strategy.next()
+    val order = strategy.apply()
     assert(order is Torpedo)
     assertEquals(Vector2D(1, 1), (order as Torpedo).target)
   }
@@ -61,7 +61,7 @@ internal class FireStrategyTest {
     env.terrible.torpedoCoolDown = 0
 
     val strategy = FireStrategy(env.terrible, env.trackerKasakta)
-    val order = strategy.next()
+    val order = strategy.apply()
     assert(order is Torpedo)
     assertNotEquals(Vector2D(1, 1), (order as Torpedo).target)
   }

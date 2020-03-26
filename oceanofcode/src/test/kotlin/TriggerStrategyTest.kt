@@ -14,7 +14,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Trigger)
     assert((trigger as Trigger).target == Vector2D(6, 6))
   }
@@ -31,7 +31,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Trigger)
     assert((trigger as Trigger).target == Vector2D(6, 6))
   }
@@ -48,7 +48,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Trigger)
     assert((trigger as Trigger).target == Vector2D(6, 6))
   }
@@ -65,7 +65,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Trigger)
     assert((trigger as Trigger).target == Vector2D(6, 6))
   }
@@ -82,7 +82,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Trigger)
     assert((trigger as Trigger).target == Vector2D(6, 6))
   }
@@ -99,7 +99,7 @@ internal class TriggerStrategyTest {
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
 
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Empty)
   }
 
@@ -115,7 +115,7 @@ internal class TriggerStrategyTest {
     env.terrible.mines.add(Vector2D(6, 6))
     env.terrible.position = Vector2D()
     env.trackerKasakta.testPrintMap(false)
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).next()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     assert(trigger is Empty)
   }
 

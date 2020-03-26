@@ -13,6 +13,6 @@ internal class DefenseStrategyTest {
     env.terrible.silenceCoolDown = 0
     env.initTurn()
 
-    assert(DefenseStrategy(env.terrible).next() is Silence)
+    assert(DefenseStrategy(env.terrible).apply() is Silence)
   }
 }
