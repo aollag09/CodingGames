@@ -80,7 +80,7 @@ internal class TrackerTest {
   fun test_surface_map3() {
     val tracker = Tracker(MapTest.generateMapTest3())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(0,5))
+    tracker.candidates.add(Vector2D(0, 5))
     tracker.update(SurfaceSector(4))
     tracker.testPrintMap(false)
     assertEquals(1, tracker.candidates.size)
@@ -103,10 +103,10 @@ internal class TrackerTest {
   }
 
   @Test
-  fun test_torpado_candidates_map2(){
+  fun test_torpado_candidates_map2() {
     val tracker = Tracker(MapTest.generateMapTest2())
     tracker.candidates.clear();
-    tracker.candidates.addAll(listOf( Vector2D(7,7), Vector2D(6,7), Vector2D(7,8), Vector2D(3, 0)))
+    tracker.candidates.addAll(listOf(Vector2D(7, 7), Vector2D(6, 7), Vector2D(7, 8), Vector2D(3, 0)))
     tracker.update(Torpedo(Vector2D(9, 7)))
     tracker.testPrintMap(false)
     assertEquals(3, tracker.candidates.size)
@@ -116,7 +116,7 @@ internal class TrackerTest {
   fun test_silence_empty_big_map() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(7,7))
+    tracker.candidates.add(Vector2D(7, 7))
     tracker.update(Silence())
     tracker.testPrintMap(false)
     assertEquals(17, tracker.candidates.size)
@@ -126,8 +126,8 @@ internal class TrackerTest {
   fun test_silence_empty_big_map_with_trail() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(7,7))
-    tracker.trail.add( Direction.N)
+    tracker.candidates.add(Vector2D(7, 7))
+    tracker.trail.add(Direction.N)
     tracker.update(Silence())
     tracker.testPrintMap(false)
     assertEquals(13, tracker.candidates.size)
@@ -137,8 +137,8 @@ internal class TrackerTest {
   fun test_silence_map1_with_trail() {
     val tracker = Tracker(MapTest.generateMapTest1())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(7,8))
-    tracker.trail.add( Direction.N)
+    tracker.candidates.add(Vector2D(7, 8))
+    tracker.trail.add(Direction.N)
     tracker.update(Silence())
     tracker.testPrintMap(false)
     assertEquals(6, tracker.candidates.size)
@@ -149,11 +149,11 @@ internal class TrackerTest {
   fun test_silence_empty_big_map_with_trails() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(9,7))
-    tracker.trail.add( Direction.S)
-    tracker.trail.add( Direction.W)
-    tracker.trail.add( Direction.W)
-    tracker.trail.add( Direction.N)
+    tracker.candidates.add(Vector2D(9, 7))
+    tracker.trail.add(Direction.S)
+    tracker.trail.add(Direction.W)
+    tracker.trail.add(Direction.W)
+    tracker.trail.add(Direction.N)
     tracker.update(Silence())
     tracker.testPrintMap(false)
     assertEquals(10, tracker.candidates.size)
@@ -163,14 +163,31 @@ internal class TrackerTest {
   fun test_silence_empty_big_map_with_trails_two_candidates() {
     val tracker = Tracker(MapTest.generateMapBigEmpty())
     tracker.candidates.clear()
-    tracker.candidates.add(Vector2D(9,7))
-    tracker.candidates.add(Vector2D(8,7))
+    tracker.candidates.add(Vector2D(9, 7))
+    tracker.candidates.add(Vector2D(8, 7))
+    tracker.trail.add(Direction.S)
+    tracker.trail.add(Direction.W)
+    tracker.trail.add(Direction.W)
+    tracker.trail.add(Direction.N)
+    tracker.update(Silence())
+    tracker.testPrintMap(false)
+    assertEquals(15, tracker.candidates.size)
+  }
+
+  @Test
+  fun test_silence_map_2_several_candidates() {
+    val tracker = Tracker(MapTest.generateMapTest2())
+    tracker.candidates.clear()
+    tracker.candidates.add(Vector2D(9, 7))
+    tracker.candidates.add(Vector2D(8, 7))
+    tracker.candidates.add(Vector2D(3, 1))
+    tracker.candidates.add(Vector2D(10, 1))
+    tracker.candidates.add(Vector2D(1, 10))
     tracker.trail.add( Direction.S)
-    tracker.trail.add( Direction.W)
     tracker.trail.add( Direction.W)
     tracker.trail.add( Direction.N)
     tracker.update(Silence())
     tracker.testPrintMap(false)
-    assertEquals(15, tracker.candidates.size)
+    assertEquals(20, tracker.candidates.size)
   }
 }
