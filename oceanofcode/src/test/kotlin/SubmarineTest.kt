@@ -12,4 +12,12 @@ internal class SubmarineTest {
     assert(submarine.isTrapDirection(map, Direction.S))
     assert( ! submarine.isTrapDirection(map, Direction.N))
   }
+
+  @Test
+  fun add_mine(){
+    val submarine = Submarine()
+    submarine.position =  Vector2D(7,7 )
+    submarine.register(0, Mine( Direction.S))
+    assert(submarine.mines.contains(Vector2D(7,8)))
+  }
 }

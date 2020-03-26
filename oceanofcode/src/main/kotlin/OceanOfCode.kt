@@ -308,7 +308,7 @@ class Submarine {
   val trail = mutableSetOf<Vector2D>()
 
   /** Active mines in the map */
-  val mines = mutableSetOf<Vector2D>();
+  val mines = mutableSetOf<Vector2D>()
 
   /** Cooldowns */
   var torpedoCoolDown = -1
@@ -338,8 +338,10 @@ class Submarine {
       trail.add(position)
     if (order is Surface || order is SurfaceSector)
       trail.clear()
-    if (order is Mine)
-      (order as Mine).direction?.let { position.getApplied(it) }?.let { mines.add(it) }
+    if (order is Mine) {
+      val mine = position.getApplied(order.direction)
+      mines.add(mine)
+    }
     orders.add(turn, order)
   }
 
@@ -363,7 +365,7 @@ class Submarine {
   /** Return true if direction lead to less than limit number of moves */
   fun isTrapDirection(map: Map, direction: Direction, limit: Int = 17): Boolean {
     val start = position.getApplied(direction)
-    val moves = mutableSetOf<Vector2D>(start, position)
+    val moves = mutableSetOf(start, position)
     val open = LinkedList<Vector2D>()
     open.push(start)
     while (moves.size < limit && open.isNotEmpty()) {
@@ -374,7 +376,7 @@ class Submarine {
           moves.add(neigh)
         }
     }
-    return moves.size < limit;
+    return moves.size < limit
   }
 
 }
@@ -597,25 +599,27 @@ class Tracker(val map: Map) {
       println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
 
     val targets = targets()
-    for (y in 0 until map.size.getIY()) {
-      var line = ""
-      for (x in 0 until map.size.getIX()) {
-        line += when {
-          map.isIsland(Vector2D(x, y)) -> "x"
-          targets.contains(Vector2D(x, y)) -> "o"
-          else -> "."
+    if ((prod && candidates.size < 100) || !prod) {
+      for (y in 0 until map.size.getIY()) {
+        var line = ""
+        for (x in 0 until map.size.getIX()) {
+          line += when {
+            map.isIsland(Vector2D(x, y)) -> "x"
+            targets.contains(Vector2D(x, y)) -> "o"
+            else -> "."
+          }
+          line += "  "
         }
-        line += "  "
+        if (prod)
+          System.err.println(line)
+        else
+          println(line)
       }
       if (prod)
-        System.err.println(line)
+        System.err.println("")
       else
-        println(line)
+        println("")
     }
-    if (prod)
-      System.err.println("")
-    else
-      println("")
   }
 }
 
@@ -678,8 +682,10 @@ class LoadStrategy(val submarine: Submarine) {
   fun load(order: Move) {
     if (!submarine.isTorpedoReady())
       order.weapon = Weapon.TORPEDO
-    else if (!submarine.isSilenceReady())
-      order.weapon = Weapon.SILENCE
+    /*
+else if (!submarine.isSilenceReady())
+order.weapon = Weapon.SILENCE
+*/
     else if (!submarine.isMineReady())
       order.weapon = Weapon.MINE
   }
@@ -857,7 +863,7 @@ class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
   fun next(): Order {
     var order: Order = Empty()
     if (submarine.isMineReady()) {
-      var best = 0;
+      var best = 0
       var target: Vector2D? = null
       for (direction in Direction.values()) {
         if (direction != Direction.NA) {
@@ -877,7 +883,7 @@ class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
         order = Mine(submarine.position.direction(target))
       }
     }
-    return order;
+    return order
   }
 
 }
@@ -930,7 +936,6 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
     }
 
     return order
-
   }
 
 }
@@ -995,7 +1000,7 @@ abstract class Order {
       }
       if (order.contains("MINE")) {
         val params = order.split(" ")
-        var direction: Direction? = null
+        var direction: Direction = Direction.NA
         if (params.size > 1)
           direction = Direction.valueOf(params[1])
         return Mine(direction)
@@ -1069,9 +1074,9 @@ class Sonar(val sector: Int) : Order() {
   }
 }
 
-class Mine(val direction: Direction? = null) : Order() {
+class Mine(val direction: Direction = Direction.NA) : Order() {
   override fun toOrderString(): String {
-    return if (direction == null) "MINE" else "MINE " + direction.name
+    return if (direction == Direction.NA) "MINE" else "MINE " + direction.name
   }
 }
 
