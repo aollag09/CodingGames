@@ -334,8 +334,10 @@ class Submarine {
   /** Register an order for a specific turn */
   fun register(turn: Int, order: Order) {
     // add to trail move position
-    if (order is Move)
-      trail.add(position)
+    if (order is Move) {
+      trail.add(Vector2D(position))
+      position.apply(order.direction)
+    }
     if (order is Surface || order is SurfaceSector)
       trail.clear()
     if (order is Mine) {
@@ -459,12 +461,9 @@ class Tracker(val map: Map) {
   /** Evaluate next move to known how many outdated position will be created */
   fun evaluate(direction: Direction): Int {
     var evaluation = 0
-    for (target in targets()) {
-      val fake = target.clone()
-      fake.apply(direction)
-      if (!map.isWater(fake))
+    for (target in targets())
+      if (!map.isWater(target.getApplied(direction)))
         evaluation++
-    }
     return evaluation
   }
 
@@ -642,7 +641,7 @@ class Strategy(val env: Env) {
       var move: Order
       move = AggressiveNaiveApproach().next(env.terrible, env.trackerKasakta)
       if (move is Empty)
-        move = SilentStrategy(env.trackerTerrible).next(env.terrible)
+        move = InvisibleStrategy(env.trackerTerrible).next(env.terrible)
       if (move is Empty)
         move = SurfaceStrategy().next()
 
@@ -822,7 +821,7 @@ class AggressiveNaiveApproach() {
   }
 }
 
-class SilentStrategy(val tracker: Tracker) {
+class InvisibleStrategy(val tracker: Tracker) {
 
   /** Compute the most silent next move */
   fun next(submarine: Submarine): Order {

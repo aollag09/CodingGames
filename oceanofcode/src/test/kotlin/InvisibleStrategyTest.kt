@@ -1,6 +1,6 @@
 import org.junit.jupiter.api.Test
 
-internal class SilentStrategyTest {
+internal class InvisibleStrategyTest {
 
   @Test
   operator fun next() {
