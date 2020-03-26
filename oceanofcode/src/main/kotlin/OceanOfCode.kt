@@ -504,7 +504,6 @@ class Tracker(val map: Map) {
     candidates.clear()
     trail.clear()
     candidates.addAll(newCandidates)
-
   }
 
   private fun addSilenceCandidate(candidate: Vector2D, snake: List<Vector2D>, newCandidates: MutableSet<Vector2D>): Boolean {
@@ -628,8 +627,37 @@ class LoadStrategy(val submarine: Submarine) {
   fun load(order: Move) {
     if (!submarine.isTorpedoReady())
       order.weapon = Weapon.TORPEDO
-    if (!submarine.isSilenceReady())
+    else if (!submarine.isSilenceReady())
       order.weapon = Weapon.SILENCE
+  }
+
+}
+
+class DefenseStrategy(val submarine: Submarine) {
+
+  fun next(): Order {
+    var order: Order = Empty()
+    val turn = submarine.life.size()
+    if (turn > 2) {
+      var deltaLife = submarine.life.get(turn - 1) - submarine.life.get(turn - 2)
+
+      // Check if submarine has surfaced
+      var surface = false
+      submarine.orders.get(turn - 1).forEach { if (it is Surface || it is SurfaceSector) surface = true }
+      if (surface)
+        deltaLife--;
+
+      // Run silence operation
+      if (deltaLife > 0 && submarine.isSilenceReady())
+        order = silence()
+
+    }
+    return order
+  }
+
+  private fun silence(): Silence{
+    // Fake move
+    return Silence(Direction.N, 0)
   }
 
 }
@@ -923,6 +951,10 @@ class LifeHistory {
       6
     else
       history[turn]!!
+  }
+
+  fun size(): Int {
+    return history.size
   }
 }
 
