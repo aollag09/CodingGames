@@ -319,8 +319,13 @@ class Submarine {
 
   /** Available neigh for next move*/
   fun neigh(map: Map): List<Vector2D> {
+    return neigh(position, map)
+  }
+
+  /** Available neigh for next move from a starting position */
+  fun neigh(start: Vector2D, map: Map): List<Vector2D> {
     val neigh = mutableListOf<Vector2D>()
-    for (n in map.neigh(position))
+    for (n in map.neigh(start))
       if (!trail.contains(n))
         neigh.add(n)
     return neigh
@@ -333,6 +338,8 @@ class Submarine {
       trail.add(position)
     if (order is Surface || order is SurfaceSector)
       trail.clear()
+    if (order is Mine)
+      (order as Mine).direction?.let { position.getApplied(it) }?.let { mines.add(it) }
     orders.add(turn, order)
   }
 
@@ -351,6 +358,23 @@ class Submarine {
 
   fun isMineReady(): Boolean {
     return this.mineCoolDown == 0
+  }
+
+  /** Return true if direction lead to less than limit number of moves */
+  fun isTrapDirection(map: Map, direction: Direction, limit: Int = 17): Boolean {
+    val start = position.getApplied(direction)
+    val moves = mutableSetOf<Vector2D>(start, position)
+    val open = LinkedList<Vector2D>()
+    open.push(start)
+    while (moves.size < limit && open.isNotEmpty()) {
+      val current = open.poll()
+      for (neigh in neigh(current, map))
+        if (!moves.contains(neigh)) {
+          open.add(neigh)
+          moves.add(neigh)
+        }
+    }
+    return moves.size < limit;
   }
 
 }
@@ -631,6 +655,11 @@ class Strategy(val env: Env) {
     if (defense !is Empty)
       orders.add(defense)
 
+    // Mine strategy
+    val mine = MineStrategy(env.terrible, env.trackerKasakta).next()
+    if (mine !is Empty)
+      orders.add(mine)
+
     return orders
   }
 
@@ -788,8 +817,11 @@ class SilentStrategy(val tracker: Tracker) {
     for (neigh in submarine.neigh(tracker.map)) {
       val evaluation = tracker.evaluate(submarine.position.direction(neigh))
       if (evaluation < silence) {
-        silence = evaluation
-        best = neigh
+        val direction = submarine.position.direction(neigh)
+        if (!submarine.isTrapDirection(tracker.map, direction)) {
+          silence = evaluation
+          best = neigh
+        }
       }
     }
     System.err.println("Silent strategy, move to $best")
@@ -838,6 +870,60 @@ class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
       }
     }
     return order;
+  }
+
+}
+
+class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) {
+
+  companion object {
+    const val MINIMUM_TARGET_FOR_TRIGGER_STRATEGY = 16
+  }
+
+
+  fun next(): Order {
+    var order: Order = Empty()
+    if (tracker.candidates.size <= MINIMUM_TARGET_FOR_TRIGGER_STRATEGY)
+      order = trigger()
+    return order
+  }
+
+  private fun trigger(): Order {
+    var order: Order = Empty()
+
+    // Look for best target : showing the most information ...
+    var best = 0.45 // min evaluation to trigger bomb
+    var bestMine: Vector2D? = null
+    val targets = tracker.targets()
+    val nbTotalTargets = targets.size
+    for (mine in submarine.mines) {
+
+      // Count percentage of targets will be touch
+      var nbTarget = 0
+      tracker.map.neighDiagonal(mine).forEach { if (targets.contains(it)) nbTarget++ }
+      var evaluation = nbTarget.toDouble() / nbTotalTargets
+
+      // Evaluate distance
+      val quickDistance = submarine.position.distance(mine)
+      if (quickDistance == 0.0)
+        continue // will not fire on me please
+      if (quickDistance < 1.5)
+        evaluation -= 0.5 // accept to fire next to me but with penalty
+
+      if (evaluation > best) {
+        best = evaluation
+        bestMine = mine
+      }
+    }
+
+    // Target found
+    if (bestMine != null) {
+      System.err.println("Trigger Mine : $bestMine")
+      order = Trigger(bestMine)
+    }
+
+    return order
+
   }
 
 }

@@ -39,7 +39,7 @@ class MapTest {
       map.parse("...............", 10)
       map.parse("xxx.xxx........", 11)
       map.parse("xxx.xxx........", 12)
-      map.parse(".xx.xxx.xx.....", 13)
+      map.parse(".xx.xxxxxx.....", 13)
       map.parse("........xx.....", 14)
       return map
     }
