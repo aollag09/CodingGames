@@ -618,8 +618,15 @@ class Strategy(val env: Env) {
       if (move !is Empty)
         orders.add(move)
     }
+
+    // Defense strategy
+    val defense = DefenseStrategy(env.terrible).next()
+    if (defense !is Empty)
+      orders.add(defense)
+
     return orders
   }
+
 }
 
 class LoadStrategy(val submarine: Submarine) {
@@ -639,13 +646,13 @@ class DefenseStrategy(val submarine: Submarine) {
     var order: Order = Empty()
     val turn = submarine.life.size()
     if (turn >= 2) {
-      var deltaLife = submarine.life.get(turn-1) - submarine.life.get(turn)
+      var deltaLife = submarine.life.get(turn - 1) - submarine.life.get(turn)
 
       // Check if submarine has surfaced
       var surface = false
       submarine.orders.get(turn - 1).forEach { if (it is Surface || it is SurfaceSector) surface = true }
       if (surface)
-        deltaLife--;
+        deltaLife--
 
       // Run silence operation
       if (deltaLife > 0 && submarine.isSilenceReady())
@@ -655,7 +662,7 @@ class DefenseStrategy(val submarine: Submarine) {
     return order
   }
 
-  private fun silence(): Silence{
+  private fun silence(): Silence {
     // Fake move
     return Silence(Direction.N, 0)
   }
@@ -665,7 +672,7 @@ class DefenseStrategy(val submarine: Submarine) {
 class FireStrategy(val opponent: Tracker) {
 
   companion object {
-    const val MINIMUM_TARGET_FOR_FIRE_STRATEGY = 30
+    const val MINIMUM_TARGET_FOR_FIRE_STRATEGY = 15
   }
 
   /** Compute the most aggressive next move*/
@@ -732,7 +739,7 @@ class FireStrategy(val opponent: Tracker) {
 class AggressiveNaiveApproach() {
 
   companion object {
-    const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 30
+    const val MINIMUM_TARGET_FOR_AGGRESSIVE_STRATEGY = 25
   }
 
   /** Try an approach on the best target */
@@ -892,7 +899,6 @@ class SurfaceSector(val sector: Int) : Order() {
   override fun toOrderString(): String {
     return "SURFACE $sector"
   }
-
 }
 
 class Torpedo(val target: Vector2D) : Order() {
