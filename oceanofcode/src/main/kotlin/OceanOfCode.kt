@@ -855,14 +855,13 @@ class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker) : Abstra
     var silence = Int.MAX_VALUE
     val targets = tracker.targets()
     for (neigh in submarine.neigh(tracker.map)) {
-      val evaluation = tracker.evaluate(submarine.position.direction(neigh), targets)
-      if (evaluation < silence) {
-        val direction = submarine.position.direction(neigh)
+      val direction = submarine.position.direction(neigh)
+      val evaluation = tracker.evaluate(direction, targets)
+      if (evaluation < silence)
         if (!submarine.isTrapDirection(tracker.map, direction)) {
           silence = evaluation
           best = neigh
         }
-      }
     }
     System.err.println("Silent strategy, move to $best")
     return Move(submarine.position.direction(best))
