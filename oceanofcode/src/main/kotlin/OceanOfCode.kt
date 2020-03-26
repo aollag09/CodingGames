@@ -296,23 +296,26 @@ class Submarine {
   }
 
   /** Current position of the submarine, if known */
-  var position: Vector2D = Vector2D()
+  var position = Vector2D()
 
   /** History of life */
   val life = LifeHistory()
 
   /** Map of orders of the submarine, key turn id and value list of orders */
-  val orders: OrderHistory = OrderHistory()
+  val orders = OrderHistory()
 
   /** Trail of my submarine */
-  val trail: MutableSet<Vector2D> = mutableSetOf()
+  val trail = mutableSetOf<Vector2D>()
+
+  /** Active mines in the map */
+  val mines = mutableSetOf<Vector2D>();
 
   /** Cooldowns */
-  var torpedoCoolDown: Int = -1
-  var sonarCoolDown: Int = -1
-  var silenceCoolDown: Int = -1
-  var mineCoolDown: Int = -1
-  var sonarResult: String = "NA" // Can be Y, N or NA
+  var torpedoCoolDown = -1
+  var sonarCoolDown = -1
+  var silenceCoolDown = -1
+  var mineCoolDown = -1
+  var sonarResult = "NA" // Can be Y, N or NA
 
   /** Available neigh for next move*/
   fun neigh(map: Map): List<Vector2D> {
@@ -344,6 +347,10 @@ class Submarine {
 
   fun isSilenceReady(): Boolean {
     return this.silenceCoolDown == 0
+  }
+
+  fun isMineReady(): Boolean {
+    return this.mineCoolDown == 0
   }
 
 }
@@ -594,12 +601,12 @@ class Strategy(val env: Env) {
     val orders = mutableListOf<Order>()
 
     // Fire
-    val fire = FireStrategy(env.trackerKasakta).next(env.terrible)
+    val fire = FireStrategy(env.terrible, env.trackerKasakta).next()
     if (fire !is Empty)
       orders.add(fire)
 
     // Surface action
-    val surface = TrapStrategy(env.map).next(env.terrible)
+    val surface = TrapStrategy(env.terrible, env.map).next()
     if (surface !is Empty)
       orders.add(surface)
     else {
@@ -636,6 +643,8 @@ class LoadStrategy(val submarine: Submarine) {
       order.weapon = Weapon.TORPEDO
     else if (!submarine.isSilenceReady())
       order.weapon = Weapon.SILENCE
+    else if (!submarine.isMineReady())
+      order.weapon = Weapon.MINE
   }
 
 }
@@ -669,22 +678,22 @@ class DefenseStrategy(val submarine: Submarine) {
 
 }
 
-class FireStrategy(val opponent: Tracker) {
+class FireStrategy(val submarine: Submarine, val tracker: Tracker) {
 
   companion object {
     const val MINIMUM_TARGET_FOR_FIRE_STRATEGY = 15
   }
 
   /** Compute the most aggressive next move*/
-  fun next(submarine: Submarine): Order {
+  fun next(): Order {
     var order: Order = Empty()
-    if (opponent.candidates.size < MINIMUM_TARGET_FOR_FIRE_STRATEGY)
-      order = fire(submarine, opponent)
+    if (tracker.candidates.size < MINIMUM_TARGET_FOR_FIRE_STRATEGY)
+      order = fire()
     return order
   }
 
   /** Try to fire a torpedo and best target */
-  fun fire(submarine: Submarine, opponent: Tracker): Order {
+  private fun fire(): Order {
     var order: Order = Empty()
     if (!submarine.isTorpedoReady())
       return order
@@ -692,20 +701,20 @@ class FireStrategy(val opponent: Tracker) {
     // Look for best target : showing the most information ...
     var best = 0.2 // min evaluation to fire
     var bestTarget: Vector2D? = null
-    val targets = opponent.targets()
+    val targets = tracker.targets()
     val nbTotalTargets = targets.size
     for (target in targets) {
 
       // Count percentage of targets will be touch
       var nbTarget = 1
-      opponent.map.neighDiagonal(target).forEach { if (targets.contains(it)) nbTarget++ }
+      tracker.map.neighDiagonal(target).forEach { if (targets.contains(it)) nbTarget++ }
       val targetPercentage = nbTarget.toDouble() / nbTotalTargets
 
       // Evaluate distance
       val quickDistance = submarine.position.distance(target)
       if (quickDistance <= Submarine.TORPEDO_RANGE + 1) {
         // Target may be reachable
-        val realPath = opponent.map.path(submarine.position, target)
+        val realPath = tracker.map.path(submarine.position, target)
         if (realPath != null) {
           val realDistance = realPath.size
           if (realDistance <= Submarine.TORPEDO_RANGE + 1) {
@@ -794,13 +803,43 @@ class SurfaceStrategy {
   }
 }
 
-class TrapStrategy(val map: Map) {
-  fun next(submarine: Submarine): Order {
+class TrapStrategy(val submarine: Submarine, val map: Map) {
+  fun next(): Order {
     return if (submarine.neigh(map).isEmpty())
       Surface()
     else
       Empty()
   }
+}
+
+class MineStrategy(val submarine: Submarine, val tracker: Tracker) {
+
+  fun next(): Order {
+    var order: Order = Empty()
+    if (submarine.isMineReady()) {
+      var best = 0;
+      var target: Vector2D? = null
+      for (direction in Direction.values()) {
+        if (direction != Direction.NA) {
+          val targetIt = submarine.position.getApplied(direction)
+          if (tracker.map.isWater(targetIt)) {
+            if (!submarine.mines.contains(targetIt)) {
+              val exposition = tracker.map.neighDiagonal(targetIt).size
+              if (exposition > best) {
+                best = exposition
+                target = targetIt
+              }
+            }
+          }
+        }
+      }
+      if (target != null) {
+        order = Mine(submarine.position.direction(target))
+      }
+    }
+    return order;
+  }
+
 }
 
 abstract class Order {
