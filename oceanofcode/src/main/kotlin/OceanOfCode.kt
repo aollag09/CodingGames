@@ -86,7 +86,9 @@ class Env(val map: Map) {
   /** Initialize turn after input updates */
   fun initTurn() {
     trackerKasakta.updateTorpedoReach(turn, terrible, kasakta)
+    trackerKasakta.updateTriggerReach(turn, terrible, kasakta)
     trackerTerrible.updateTorpedoReach(turn, kasakta, terrible)
+    trackerTerrible.updateTriggerReach(turn, kasakta, terrible)
   }
 
   fun endTurn() {
@@ -554,6 +556,18 @@ class Tracker(val map: Map) {
     return false
   }
 
+  fun updateTriggerReach(turn: Int, from: Submarine, to: Submarine) {
+    var trigger: Trigger? = null
+    from.orders.get(turn - 1).forEach { if (it is Trigger) trigger = it }
+    if (trigger != null) {
+      val target: Vector2D = trigger!!.target
+      val deltaLife = deltaLife(to, turn)
+      // Register impact of tracker
+      val candidate = targetMap()
+      outdate(deltaLife, candidate, target, false)
+    }
+  }
+
   /** Compute the torpedo impact on tracker */
   fun updateTorpedoReach(turn: Int, from: Submarine, to: Submarine) {
     // Check torpedo impact in previous turn
@@ -562,40 +576,51 @@ class Tracker(val map: Map) {
 
     if (torpedo != null) {
       val target: Vector2D = torpedo!!.target
-      // Look if enemy has surfaced
-      var surfaced = false
-      to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
-
-      // Compute delta of life
-      var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
-      if (surfaced)
-        deltaLife -= 1
+      val deltaLife = deltaLife(to, turn)
 
       // Register impact of tracker
       val candidate = targetMap()
-      when (deltaLife) {
-        0 -> {
-          // A L'EAU, remove all candidates in the zone
-          outdate(candidate[target])
-          map.neighDiagonal(target).forEach { outdate(candidate[it]) }
+      outdate(deltaLife, candidate, target, true)
+    }
+  }
+
+  private fun outdate(deltaLife: Int, candidate: kotlin.collections.Map<Vector2D, Vector2D>, target: Vector2D, first: Boolean) {
+    when (deltaLife) {
+      0 -> {
+        // A L'EAU, remove all candidates in the zone
+        outdate(candidate[target])
+        map.neighDiagonal(target).forEach { outdate(candidate[it]) }
+      }
+      1 -> {
+        // TOUCHE, keep only candidates in the area
+        outdate(candidate[target])
+        val currentCandidates = mutableListOf<Vector2D>()
+        map.neighDiagonal(target).forEach {
+          if (candidate[it] != null)
+            currentCandidates.add(candidate.getValue(it))
         }
-        1 -> {
-          // TOUCHE, keep only candidates in the area
-          outdate(candidate[target])
-          val candidates = mutableListOf<Vector2D>()
-          map.neighDiagonal(target).forEach {
-            if (candidate[it] != null)
-              candidates.add(candidate.getValue(it))
-          }
-          outdateAllExcept(candidates)
-        }
-        2 -> {
-          // TOUCHE COULE, NICE ! keep only target candidate !
-          outdateAllExcept(listOf(candidate.getValue(target)))
-        }
+        if (first)
+          outdateAllExcept(currentCandidates)
+        else
+          this.candidates.addAll(currentCandidates)
+      }
+      2 -> {
+        // TOUCHE COULE, NICE ! keep only target candidate !
+        outdateAllExcept(listOf(candidate.getValue(target)))
       }
     }
+  }
 
+  private fun deltaLife(to: Submarine, turn: Int): Int {
+    // Look if enemy has surfaced
+    var surfaced = false
+    to.orders.get(turn - 1).forEach { if (it is SurfaceSector || it is SurfaceSector) surfaced = true }
+
+    // Compute delta of life
+    var deltaLife = to.life.get(turn - 1) - to.life.get(turn)
+    if (surfaced)
+      deltaLife -= 1
+    return deltaLife
   }
 
   fun testPrintMap(prod: Boolean) {
@@ -704,15 +729,13 @@ class LoadStrategy(val submarine: Submarine) {
   fun load(order: Move) {
     if (!submarine.isTorpedoReady()) {
       order.weapon = Weapon.TORPEDO
-      submarine.torpedoCoolDown --
-    }
-    else if (!submarine.isSilenceReady()) {
+      submarine.torpedoCoolDown--
+    } else if (!submarine.isSilenceReady()) {
       order.weapon = Weapon.SILENCE
-      submarine.silenceCoolDown --
-    }
-    else if (!submarine.isMineReady()) {
+      submarine.silenceCoolDown--
+    } else if (!submarine.isMineReady()) {
       order.weapon = Weapon.MINE
-      submarine.mineCoolDown --
+      submarine.mineCoolDown--
     }
   }
 
