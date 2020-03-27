@@ -130,7 +130,10 @@ class Map(width: Int, height: Int) {
   }
 
   fun isWater(pos: Vector2D): Boolean {
-    return pos.x >= 0 && pos.x < size.getIX() && pos.y >= 0 && pos.y < size.getIY() && !isIsland(pos)
+    return if (pos.x >= 0 && pos.x < size.getIX() && pos.y >= 0 && pos.y < size.getIY())
+      !isIsland(pos)
+    else
+      false
   }
 
   fun parse(line: String, j: Int) {
@@ -175,7 +178,7 @@ class Map(width: Int, height: Int) {
   }
 
   fun neigh(pos: Vector2D): Set<Vector2D> {
-    val neigh: MutableSet<Vector2D> = mutableSetOf()
+    val neigh = mutableSetOf<Vector2D>()
     for (dx in -1..1 step 1)
       for (dy in -1..1 step 1)
         if (abs(dx) + abs(dy) == 1)
@@ -661,7 +664,7 @@ class Strategy(val env: Env) {
       var move: Order
       move = AggressiveApproach(env.terrible, env.trackerKasakta).applyTimer()
       if (move is Empty)
-        move = InvisibleStrategy(env.terrible, env.trackerTerrible).applyTimer()
+        move = InvisibleStrategy(env.terrible, env.trackerTerrible, env.turn).applyTimer()
       if (move is Empty)
         move = SurfaceStrategy().applyTimer()
 
@@ -851,7 +854,7 @@ class AggressiveApproach(val submarine: Submarine, val opponent: Tracker) : Abst
   }
 }
 
-class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStrategy() {
+class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker, val turn: Int) : AbstractStrategy() {
 
   /** Compute the most silent next move */
   override fun apply(): Order {
@@ -861,11 +864,14 @@ class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker) : Abstra
     for (neigh in submarine.neigh(tracker.map)) {
       val direction = submarine.position.direction(neigh)
       val evaluation = tracker.evaluate(direction, targets)
-      if (evaluation < silence)
-        if (!submarine.isTrapDirection(tracker.map, direction)) {
+      if (evaluation < silence) {
+        // PCS, remove is trap direction computation for the first n turn
+        val minTurn = 5
+        if (turn <= minTurn || !submarine.isTrapDirection(tracker.map, direction)) {
           silence = evaluation
           best = neigh
         }
+      }
     }
     System.err.println("Silent strategy, move to $best")
     return Move(submarine.position.direction(best))

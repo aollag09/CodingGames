@@ -8,7 +8,7 @@ internal class MapTestPCS {
   @Test
   fun isIsland() {
     val map = MapTest.generateMapTest2()
-    val it = 100000
+    val it = 10000000
     val start = System.currentTimeMillis()
     for (i in 1..it)
       map.isIsland(Vector2D(random.nextInt(map.size.getIX()), random.nextInt(map.size.getIY())))
