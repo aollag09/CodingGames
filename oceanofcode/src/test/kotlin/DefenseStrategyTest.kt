@@ -13,6 +13,7 @@ internal class DefenseStrategyTest {
     env.terrible.silenceCoolDown = 0
     env.initTurn()
 
+    env.trackerKasakta.testPrintMap(false)
     assert(DefenseStrategy(env.terrible).apply() is Silence)
   }
 }

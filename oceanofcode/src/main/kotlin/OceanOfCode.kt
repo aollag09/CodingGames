@@ -85,10 +85,8 @@ class Env(val map: Map) {
 
   /** Initialize turn after input updates */
   fun initTurn() {
-    trackerKasakta.updateTorpedoReach(turn, terrible, kasakta)
-    trackerKasakta.updateTriggerReach(turn, terrible, kasakta)
-    trackerTerrible.updateTorpedoReach(turn, kasakta, terrible)
-    trackerTerrible.updateTriggerReach(turn, kasakta, terrible)
+    trackerKasakta.updateFireReach(turn, terrible, kasakta)
+    trackerTerrible.updateFireReach(turn, kasakta, terrible)
   }
 
   fun endTurn() {
@@ -556,57 +554,61 @@ class Tracker(val map: Map) {
     return false
   }
 
-  fun updateTriggerReach(turn: Int, from: Submarine, to: Submarine) {
-    var trigger: Trigger? = null
-    from.orders.get(turn - 1).forEach { if (it is Trigger) trigger = it }
-    if (trigger != null) {
-      val target: Vector2D = trigger!!.target
-      val deltaLife = deltaLife(to, turn)
-      // Register impact of tracker
-      val candidate = targetMap()
-      outdate(deltaLife, candidate, target, false)
-    }
-  }
-
-  /** Compute the torpedo impact on tracker */
-  fun updateTorpedoReach(turn: Int, from: Submarine, to: Submarine) {
+  fun updateFireReach(turn: Int, from: Submarine, to: Submarine) {
     // Check torpedo impact in previous turn
     var torpedo: Torpedo? = null
     from.orders.get(turn - 1).forEach { if (it is Torpedo) torpedo = it }
 
-    if (torpedo != null) {
-      val target: Vector2D = torpedo!!.target
-      val deltaLife = deltaLife(to, turn)
+    // Check trigger impact in previous turn
+    var trigger: Trigger? = null
+    from.orders.get(turn - 1).forEach { if (it is Trigger) trigger = it }
 
+    // Compute delta live and target
+    val deltaLife = deltaLife(to, turn)
+    val targetTorpedo: Vector2D? = if (torpedo != null) torpedo!!.target else null
+    val targetTrigger: Vector2D? = if (trigger != null) trigger!!.target else null
+
+    if (targetTorpedo != null || targetTrigger != null) {
       // Register impact of tracker
       val candidate = targetMap()
-      outdate(deltaLife, candidate, target, true)
-    }
-  }
-
-  private fun outdate(deltaLife: Int, candidate: kotlin.collections.Map<Vector2D, Vector2D>, target: Vector2D, first: Boolean) {
-    when (deltaLife) {
-      0 -> {
-        // A L'EAU, remove all candidates in the zone
-        outdate(candidate[target])
-        map.neighDiagonal(target).forEach { outdate(candidate[it]) }
-      }
-      1 -> {
-        // TOUCHE, keep only candidates in the area
-        outdate(candidate[target])
-        val currentCandidates = mutableListOf<Vector2D>()
-        map.neighDiagonal(target).forEach {
-          if (candidate[it] != null)
-            currentCandidates.add(candidate.getValue(it))
+      when (deltaLife) {
+        0 -> {
+          // A L'EAU, remove all candidates in the zone
+          if (targetTrigger != null) {
+            outdate(candidate[targetTrigger])
+            map.neighDiagonal(targetTrigger).forEach { outdate(candidate[it]) }
+          }
+          if (targetTorpedo != null) {
+            outdate(candidate[targetTorpedo])
+            map.neighDiagonal(targetTorpedo).forEach { outdate(candidate[it]) }
+          }
         }
-        if (first)
+        1, 3 -> {
+          // TOUCHE, keep only candidates in the area
+          val currentCandidates = mutableListOf<Vector2D>()
+          if (targetTorpedo != null) {
+            outdate(candidate[targetTorpedo])
+            map.neighDiagonal(targetTorpedo).forEach {
+              if (candidate[it] != null)
+                currentCandidates.add(candidate.getValue(it))
+            }
+          }
+          if (targetTrigger != null) {
+            outdate(candidate[targetTrigger])
+            map.neighDiagonal(targetTrigger).forEach {
+              if (candidate[it] != null)
+                currentCandidates.add(candidate.getValue(it))
+            }
+          }
           outdateAllExcept(currentCandidates)
-        else
-          this.candidates.addAll(currentCandidates)
-      }
-      2 -> {
-        // TOUCHE COULE, NICE ! keep only target candidate !
-        outdateAllExcept(listOf(candidate.getValue(target)))
+        }
+        2, 4 -> {
+          // TOUCHE COULE, NICE ! keep only target candidate !
+          if (targetTorpedo != null)
+            outdateAllExcept(listOf(candidate.getValue(targetTorpedo)))
+          if (targetTrigger != null)
+            outdateAllExcept(listOf(candidate.getValue(targetTrigger)))
+        }
       }
     }
   }
@@ -1198,7 +1200,7 @@ class LifeHistory {
   }
 
   fun get(turn: Int): Int {
-    return if (turn <= 0)
+    return if (turn <= 0 || turn > history.size)
       6
     else
       history[turn]!!
@@ -1489,7 +1491,6 @@ class Vector2D(var x: Double, var y: Double) {
   fun clone(): Vector2D {
     return Vector2D(x, y)
   }
-
 
   override fun toString(): String {
     return "(x=$x, y=$y)"
