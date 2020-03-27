@@ -2,7 +2,9 @@
 
 import java.util.*
 import kotlin.collections.HashSet
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 fun main(args: Array<String>) {
@@ -50,10 +52,8 @@ fun main(args: Array<String>) {
     // Strategy to compute next moves based on environment
     val strategy = Strategy(env)
     val orders = strategy.next()
-    println(Order.toString(orders))
+    println(Order.toString(env.terrible.orders.get(env.turn)))
 
-    // Register action
-    env.terrible.register(env.turn, orders)
     env.endTurn()
   }
 }
@@ -319,18 +319,24 @@ class Submarine {
 
   /** Register an order for a specific turn */
   fun register(turn: Int, order: Order) {
-    // add to trail move position
-    if (order is Move) {
-      trail.add(Vector2D(position))
-      position.apply(order.direction)
+    if (order !is Empty) {
+      // add to trail move position
+      if (order is Move) {
+        trail.add(Vector2D(position))
+        position.apply(order.direction)
+      }
+      if (order is Surface || order is SurfaceSector)
+        trail.clear()
+      if (order is Mine) {
+        val mine = position.getApplied(order.direction)
+        mines.add(mine)
+      }
+      if( order is Trigger ){
+        val mine = order.target
+        mines.remove(mine)
+      }
+      orders.add(turn, order)
     }
-    if (order is Surface || order is SurfaceSector)
-      trail.clear()
-    if (order is Mine) {
-      val mine = position.getApplied(order.direction)
-      mines.add(mine)
-    }
-    orders.add(turn, order)
   }
 
   /** Register orders for a specific turn */
@@ -653,18 +659,15 @@ abstract class AbstractStrategy {
 
 class Strategy(val env: Env) {
 
-  fun next(): List<Order> {
-    val orders = mutableListOf<Order>()
-
+  fun next() {
     // Fire
     val fire = FireStrategy(env.terrible, env.trackerKasakta).apply()
-    if (fire !is Empty)
-      orders.add(fire)
+    env.terrible.register(env.turn, fire)
 
     // Surface action
     val surface = TrapStrategy(env.terrible, env.map).apply()
     if (surface !is Empty)
-      orders.add(surface)
+      env.terrible.register(env.turn, surface)
     else {
       // Compute move action
       var move: Order
@@ -679,29 +682,24 @@ class Strategy(val env: Env) {
         LoadStrategy(env.terrible).load(move)
 
       // Add move action
-      if (move !is Empty)
-        orders.add(move)
+      env.terrible.register(env.turn, move)
     }
 
     // Defense strategy
     val defense = DefenseStrategy(env.terrible).apply()
-    if (defense !is Empty)
-      orders.add(defense)
+    env.terrible.register(env.turn, defense)
 
     // Mine strategy
     val mine = MineStrategy(env.terrible, env.trackerKasakta).apply()
-    if (mine !is Empty)
-      orders.add(mine)
+    env.terrible.register(env.turn, mine)
 
     // Trigger strategy
     val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
-    if (trigger !is Empty)
-      orders.add(trigger)
+    env.terrible.register(env.turn, trigger)
 
     // Message strategy
-    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).apply())
-
-    return orders
+    val message = MessageStrategy(env.trackerTerrible, env.trackerKasakta).apply()
+    env.terrible.register(env.turn, message)
   }
 }
 
@@ -989,6 +987,8 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) : Abstract
         continue // will not fire on me please
       if (quickDistance < 1.5)
         evaluation -= 0.5 // accept to fire next to me but with penalty
+
+      System.err.println("==>>> Mine " + mine.toString() + " evaluation = " + evaluation)
 
       if (evaluation > best) {
         best = evaluation
