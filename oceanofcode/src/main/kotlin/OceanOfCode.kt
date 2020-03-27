@@ -651,22 +651,22 @@ class Strategy(val env: Env) {
     val orders = mutableListOf<Order>()
 
     // Fire
-    val fire = FireStrategy(env.terrible, env.trackerKasakta).applyTimer()
+    val fire = FireStrategy(env.terrible, env.trackerKasakta).apply()
     if (fire !is Empty)
       orders.add(fire)
 
     // Surface action
-    val surface = TrapStrategy(env.terrible, env.map).applyTimer()
+    val surface = TrapStrategy(env.terrible, env.map).apply()
     if (surface !is Empty)
       orders.add(surface)
     else {
       // Compute move action
       var move: Order
-      move = AggressiveApproach(env.terrible, env.trackerKasakta).applyTimer()
+      move = AggressiveApproach(env.terrible, env.trackerKasakta).apply()
       if (move is Empty)
-        move = InvisibleStrategy(env.terrible, env.trackerTerrible, env.turn).applyTimer()
+        move = InvisibleStrategy(env.terrible, env.trackerTerrible, env.turn).apply()
       if (move is Empty)
-        move = SurfaceStrategy().applyTimer()
+        move = SurfaceStrategy().apply()
 
       // Load weapon on move action
       if (move is Move)
@@ -678,22 +678,22 @@ class Strategy(val env: Env) {
     }
 
     // Defense strategy
-    val defense = DefenseStrategy(env.terrible).applyTimer()
+    val defense = DefenseStrategy(env.terrible).apply()
     if (defense !is Empty)
       orders.add(defense)
 
     // Mine strategy
-    val mine = MineStrategy(env.terrible, env.trackerKasakta).applyTimer()
+    val mine = MineStrategy(env.terrible, env.trackerKasakta).apply()
     if (mine !is Empty)
       orders.add(mine)
 
     // Trigger strategy
-    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).applyTimer()
+    val trigger = TriggerStrategy(env.terrible, env.trackerKasakta).apply()
     if (trigger !is Empty)
       orders.add(trigger)
 
     // Message strategy
-    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).applyTimer())
+    orders.add(MessageStrategy(env.trackerTerrible, env.trackerKasakta).apply())
 
     return orders
   }
