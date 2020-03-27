@@ -1,4 +1,4 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate", "LocalVariableName")
+@file:Suppress("MemberVisibilityCanBePrivate", "LocalVariableName")
 
 import java.util.*
 import kotlin.collections.HashSet
@@ -93,26 +93,6 @@ class Env(val map: Map) {
     // Update trackers
     trackerTerrible.update(terrible.orders.get(turn))
     trackerKasakta.testPrintMap(true)
-  }
-
-  /** Create a graph of next movable positions regarding environment */
-  fun moveGraph(start: Vector2D = terrible.position): Graph<Vector2D> {
-    val graph: Graph<Vector2D> = Graph()
-    val visited: MutableSet<Vector2D> = terrible.trail.toMutableSet()
-    val toVisit: MutableList<Vector2D> = mutableListOf()
-    toVisit.add(start)
-    while (toVisit.isNotEmpty()) {
-      val next: Vector2D = toVisit.removeAt(0)
-      if (!visited.contains(next)) {
-        for (neigh in map.neigh(next)) {
-          graph.addEdge(next, neigh)
-          if (!visited.contains(neigh))
-            toVisit.add(neigh)
-        }
-        visited.add(next)
-      }
-    }
-    return graph
   }
 
 }
@@ -299,7 +279,6 @@ class Submarine {
 
   companion object {
     const val TORPEDO_RANGE = 4
-    private const val TORPEDO_MAX_COOL_DOWN = 3
   }
 
   /** Current position of the submarine, if known */
@@ -1239,33 +1218,6 @@ class OrderHistory {
 
 }
 
-class Graph<T>(private val bidirectional: Boolean = false) {
-  val adjacencyMap: HashMap<T, HashSet<T>> = HashMap()
-
-  fun addEdge(source: T, target: T) {
-    // Add edge to source vertex / node.
-    adjacencyMap
-        .computeIfAbsent(source) { HashSet() }
-        .add(target)
-    if (!this.bidirectional) {
-      adjacencyMap
-          .computeIfAbsent(target) { HashSet() }
-          .add(source)
-    }
-  }
-
-  fun size(): Int {
-    return adjacencyMap.size
-  }
-
-  override fun toString(): String = StringBuffer().apply {
-    for (key in adjacencyMap.keys) {
-      append("$key -> ")
-      append(adjacencyMap[key]?.joinToString(", ", "[", "]\n"))
-    }
-  }.toString()
-}
-
 class Vector2D(var x: Double, var y: Double) {
 
   constructor(vector2D: Vector2D) : this(vector2D.x, vector2D.y)
@@ -1322,170 +1274,14 @@ class Vector2D(var x: Double, var y: Double) {
     return new
   }
 
-  fun distance(vx: Double, vy: Double): Double {
-    var dx = vx
-    var dy = vy
-    dx -= x
-    dy -= y
-    return sqrt(dx * dx + dy * dy)
-  }
-
   fun distance(v: Vector2D): Double {
     val vx = v.x - this.x
     val vy = v.y - this.y
     return sqrt((vx * vx + vy * vy))
   }
 
-  fun getAngle(): Double {
-    return atan2(y, x)
-  }
-
-  fun normalize() {
-    val magnitude: Double = length()
-    x /= magnitude
-    y /= magnitude
-  }
-
-  fun getNormalized(): Vector2D {
-    val magnitude: Double = length()
-    return Vector2D(x / magnitude, y / magnitude)
-  }
-
-  fun toCartesian(magnitude: Double, angle: Double): Vector2D {
-    return Vector2D(magnitude * cos(angle), magnitude * sin(angle))
-  }
-
-  fun add(v: Vector2D) {
-    x += v.x
-    y += v.y
-  }
-
-  fun add(vx: Double, vy: Double) {
-    x += vx
-    y += vy
-  }
-
-  fun add(v1: Vector2D, v2: Vector2D): Vector2D {
-    return Vector2D(v1.x + v2.x, v1.y + v2.y)
-  }
-
   fun getAdded(v: Vector2D): Vector2D {
     return Vector2D(x + v.x, y + v.y)
-  }
-
-  fun subtract(v: Vector2D) {
-    x -= v.x
-    y -= v.y
-  }
-
-  fun subtract(vx: Double, vy: Double) {
-    x -= vx
-    y -= vy
-  }
-
-  fun getSubtracted(v: Vector2D): Vector2D {
-    return Vector2D(x - v.x, y - v.y)
-  }
-
-  fun multiply(scalar: Double) {
-    x *= scalar
-    y *= scalar
-  }
-
-  fun getMultiplied(scalar: Double): Vector2D {
-    return Vector2D(x * scalar, y * scalar)
-  }
-
-  fun divide(scalar: Double) {
-    x /= scalar
-    y /= scalar
-  }
-
-  fun getDivided(scalar: Double): Vector2D {
-    return Vector2D(x / scalar, y / scalar)
-  }
-
-  fun getPerp(): Vector2D {
-    return Vector2D(-y, x)
-  }
-
-  fun dot(v: Vector2D): Double {
-    return x * v.x + y * v.y
-  }
-
-  fun dot(vx: Double, vy: Double): Double {
-    return x * vx + y * vy
-  }
-
-  fun dot(v1: Vector2D, v2: Vector2D): Double {
-    return v1.x * v2.x + v1.y * v2.y
-  }
-
-  fun cross(v: Vector2D): Double {
-    return x * v.y - y * v.x
-  }
-
-  fun cross(vx: Double, vy: Double): Double {
-    return x * vy - y * vx
-  }
-
-  fun cross(v1: Vector2D, v2: Vector2D): Double {
-    return v1.x * v2.y - v1.y * v2.x
-  }
-
-  fun project(v: Vector2D): Double {
-    return this.dot(v) / this.length()
-  }
-
-  fun project(vx: Double, vy: Double): Double {
-    return this.dot(vx, vy) / this.length()
-  }
-
-  fun project(v1: Vector2D, v2: Vector2D): Double {
-    return dot(v1, v2) / v1.length()
-  }
-
-  fun getProjectedVector(v: Vector2D): Vector2D {
-    return getNormalized().getMultiplied(this.dot(v) / this.length())
-  }
-
-  fun getProjectedVector(vx: Double, vy: Double): Vector2D {
-    return getNormalized().getMultiplied(this.dot(vx, vy) / this.length())
-  }
-
-  fun getProjectedVector(v1: Vector2D, v2: Vector2D): Vector2D {
-    return v1.getNormalized().getMultiplied(dot(v1, v2) / v1.length())
-  }
-
-  fun rotateBy(angle: Double) {
-    val cos = cos(angle)
-    val sin = sin(angle)
-    val rx = x * cos - y * sin
-    y = x * sin + y * cos
-    x = rx
-  }
-
-  fun getRotatedBy(angle: Double): Vector2D {
-    val cos = cos(angle)
-    val sin = sin(angle)
-    return Vector2D(x * cos - y * sin, x * sin + y * cos)
-  }
-
-  fun rotateTo(angle: Double) {
-    set(toCartesian(length(), angle))
-  }
-
-  fun getRotatedTo(angle: Double): Vector2D {
-    return toCartesian(length(), angle)
-  }
-
-  fun reverse() {
-    x = -x
-    y = -y
-  }
-
-  fun getReversed(): Vector2D {
-    return Vector2D(-x, -y)
   }
 
   fun clone(): Vector2D {
