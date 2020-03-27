@@ -118,11 +118,15 @@ class Env(val map: Map) {
 }
 
 class Map(width: Int, height: Int) {
+
+  /** Size of the map */
   val size: Vector2D = Vector2D(width, height)
-  private val islands = mutableSetOf<Vector2D>()
+
+  /** 2D boolean map for islands */
+  private val islands = Array(size.getIX()) { _ -> Array(size.getIY()) { _ -> false } }
 
   fun isIsland(pos: Vector2D): Boolean {
-    return islands.contains(pos)
+    return islands[pos.getIX()][pos.getIY()]
   }
 
   fun isWater(pos: Vector2D): Boolean {
@@ -132,7 +136,7 @@ class Map(width: Int, height: Int) {
   fun parse(line: String, j: Int) {
     for (i in line.indices)
       if (line.toCharArray()[i] != '.')
-        this.islands.add(Vector2D(i, j))
+        this.islands[i][j] = true
   }
 
   fun getWaterSection(section: Int): Set<Vector2D> {
