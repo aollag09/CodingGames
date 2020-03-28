@@ -62,7 +62,7 @@ internal class FireStrategyTest {
 
     val strategy = FireStrategy(env.terrible, env.trackerKasakta)
     val order = strategy.apply()
-    assert(order is Torpedo)
-    assertNotEquals(Vector2D(1, 1), (order as Torpedo).target)
+    assert(order is Empty)
+    //assertNotEquals(Vector2D(1, 1), (order as Torpedo).target)
   }
 }

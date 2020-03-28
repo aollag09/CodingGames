@@ -86,12 +86,12 @@ class Env(val map: Map) {
   /** Initialize turn after input updates */
   fun initTurn() {
     trackerKasakta.updateFireReach(turn, terrible, kasakta)
-    trackerTerrible.updateFireReach(turn, kasakta, terrible)
+    // FIXME trackerTerrible.updateFireReach(turn, kasakta, terrible)
   }
 
   fun endTurn() {
     // Update trackers
-    trackerTerrible.update(terrible.orders.get(turn))
+    // FIXME trackerTerrible.update(terrible.orders.get(turn))
     trackerKasakta.testPrintMap(true)
   }
 
@@ -324,6 +324,7 @@ class Submarine {
       if (order is Move) {
         trail.add(Vector2D(position))
         position.apply(order.direction)
+        registerLoad(order)
       }
       if (order is Surface || order is SurfaceSector)
         trail.clear()
@@ -331,11 +332,22 @@ class Submarine {
         val mine = position.getApplied(order.direction)
         mines.add(mine)
       }
-      if( order is Trigger ){
+      if (order is Trigger) {
         val mine = order.target
         mines.remove(mine)
       }
       orders.add(turn, order)
+    }
+  }
+
+  private fun registerLoad(order: Move) {
+    when (order.weapon) {
+      Weapon.MINE -> mineCoolDown--
+      Weapon.SILENCE -> silenceCoolDown--
+      Weapon.TORPEDO -> torpedoCoolDown--
+      Weapon.SONAR -> sonarCoolDown--
+      Weapon.NA -> {
+      }
     }
   }
 
@@ -611,22 +623,24 @@ class Tracker(val map: Map) {
   }
 
   fun testPrintMap(prod: Boolean) {
-    if (prod)
-      System.err.println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
-    else
-      println("Candidates : " + candidates.size + ", Outdated : " + outdated.size)
-
-    val targets = targets()
+    logln("Candidates : " + candidates.size + ", Outdated : " + outdated.size, prod)
     if ((prod && candidates.size < 100) || !prod) {
+      val targets = targets()
+      val separator = "  "
+      var xAxis = "$separator "
+      for (x in 0 until map.size.getIX()) {
+        xAxis += x.toString()[x.toString().length - 1] + separator
+      }
+      logln(xAxis, prod)
       for (y in 0 until map.size.getIY()) {
-        var line = ""
+        var line = y.toString()[y.toString().length - 1] + separator
         for (x in 0 until map.size.getIX()) {
           line += when {
             map.isIsland(Vector2D(x, y)) -> "x"
             targets.contains(Vector2D(x, y)) -> "o"
             else -> "."
           }
-          line += "  "
+          line += separator
         }
         if (prod)
           System.err.println(line)
@@ -660,9 +674,6 @@ abstract class AbstractStrategy {
 class Strategy(val env: Env) {
 
   fun next() {
-    // Fire
-    val fire = FireStrategy(env.terrible, env.trackerKasakta).apply()
-    env.terrible.register(env.turn, fire)
 
     // Surface action
     val surface = TrapStrategy(env.terrible, env.map).apply()
@@ -684,6 +695,10 @@ class Strategy(val env: Env) {
       // Add move action
       env.terrible.register(env.turn, move)
     }
+
+    // Fire
+    val fire = FireStrategy(env.terrible, env.trackerKasakta).apply()
+    env.terrible.register(env.turn, fire)
 
     // Defense strategy
     val defense = DefenseStrategy(env.terrible).apply()
@@ -778,7 +793,7 @@ class FireStrategy(val submarine: Submarine, val tracker: Tracker) : AbstractStr
       return order
 
     // Look for best target : showing the most information ...
-    var best = 0.2 // min evaluation to fire
+    var best = 0.4 // min evaluation to fire
     var bestTarget: Vector2D? = null
     val targets = tracker.targets()
     val nbTotalTargets = targets.size
@@ -881,7 +896,7 @@ class InvisibleStrategy(val submarine: Submarine, val tracker: Tracker, val turn
         }
       }
     }
-    System.err.println("Silent strategy, move to $best")
+    System.err.println("Invisible strategy, move to $best")
     return Move(submarine.position.direction(best))
   }
 
@@ -987,8 +1002,6 @@ class TriggerStrategy(val submarine: Submarine, val tracker: Tracker) : Abstract
         continue // will not fire on me please
       if (quickDistance < 1.5)
         evaluation -= 0.5 // accept to fire next to me but with penalty
-
-      System.err.println("==>>> Mine " + mine.toString() + " evaluation = " + evaluation)
 
       if (evaluation > best) {
         best = evaluation
@@ -1310,4 +1323,11 @@ class Vector2D(var x: Double, var y: Double) {
     return result
   }
 
+}
+
+fun logln(message: String, prod: Boolean) {
+  if (prod)
+    System.err.println(message)
+  else
+    println(message)
 }
