@@ -721,16 +721,12 @@ class Strategy(val env: Env) {
 class LoadStrategy(val submarine: Submarine) {
 
   fun load(order: Move) {
-    if (!submarine.isTorpedoReady()) {
+    if (!submarine.isTorpedoReady())
       order.weapon = Weapon.TORPEDO
-      submarine.torpedoCoolDown--
-    } else if (!submarine.isSilenceReady()) {
+    else if (!submarine.isSilenceReady())
       order.weapon = Weapon.SILENCE
-      submarine.silenceCoolDown--
-    } else if (!submarine.isMineReady()) {
+    else if (!submarine.isMineReady())
       order.weapon = Weapon.MINE
-      submarine.mineCoolDown--
-    }
   }
 
 }
